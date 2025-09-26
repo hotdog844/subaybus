@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\BusLocationController;
 use App\Http\Controllers\Api\RatingController;
 use App\Http\Controllers\Api\FavoriteRouteController;
+use App\Http\Controllers\BusController;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,11 +18,16 @@ use App\Http\Controllers\Api\FavoriteRouteController;
 |
 */
 
+// Add this new route specifically for the single live bus
+Route::get('/bus/live', [App\Http\Controllers\Api\BusController::class, 'getLiveBus']);
+
+Route::get('/buses', [BusController::class, 'index']);
+
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-
+Route::get('/buses', [BusController::class, 'index']);
 // --- SubayBus API Routes ---
 
 // Route to get all defined routes for the homepage filter pills
