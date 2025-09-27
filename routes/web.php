@@ -43,7 +43,7 @@ use App\Http\Controllers\Driver\DashboardController as DriverDashboardController
 
 // The very first page of your website
 Route::get('/', function () {
-    return view('welcome'); // Or redirect to login: return redirect()->route('login');
+    return view('auth.login'); // Or redirect to login: return redirect()->route('login');
 });
 
 // The page to view details of a single bus
