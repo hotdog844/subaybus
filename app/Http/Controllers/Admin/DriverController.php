@@ -22,22 +22,32 @@ class DriverController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:drivers',
-            'license_number' => 'required|string|max:255|unique:drivers,license_number',
-            'contact_number' => 'nullable|string|max:255',
-            'password' => 'required|string|min:8',
-        ]);
+{
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|string|email|max:255|unique:drivers',
+        'license_number' => 'required|string|max:255|unique:drivers,license_number',
+        'contact_number' => 'nullable|string|max:255',
+        'password' => 'required|string|min:8',
+        'license_image' => 'required|image|max:2048', // Max 2MB
+        'cert_image' => 'required|image|max:2048',    // Max 2MB
+    ]);
 
-        // Hash the password before creating the driver
-        $validated['password'] = Hash::make($validated['password']);
+    // Handle File Uploads
+    $licensePath = $request->file('license_image')->store('driver_documents', 'public');
+    $certPath = $request->file('cert_image')->store('driver_documents', 'public');
 
-        Driver::create($validated);
+    // Hash password
+    $validated['password'] = Hash::make($validated['password']);
 
-        return redirect()->route('admin.drivers.index')->with('success', 'Driver added successfully!');
-    }
+    // Add paths to data
+    $validated['license_image_path'] = $licensePath;
+    $validated['cert_image_path'] = $certPath;
+
+    Driver::create($validated);
+
+    return redirect()->route('admin.drivers.index')->with('success', 'Driver added successfully with documents!');
+}
 
     public function edit(Driver $driver)
     {

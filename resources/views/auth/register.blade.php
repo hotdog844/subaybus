@@ -154,6 +154,9 @@
             
             <div class="form-group">
                 <label for="passenger_type">Passenger Type</label>
+                <label for="id_image">Upload Valid ID (Required)</label>
+                <input id="id_image" type="file" name="id_image" accept="image/*" required>
+                @error('id_image') <p class="error-message">{{ $message }}</p> @enderror
                 <select name="passenger_type" id="passenger_type" required>
                     <option value="Regular" @if(old('passenger_type') == 'Regular') selected @endif>Regular</option>
                     <option value="Student" @if(old('passenger_type') == 'Student') selected @endif>Student</option>

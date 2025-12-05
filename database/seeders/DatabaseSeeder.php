@@ -15,11 +15,12 @@ class DatabaseSeeder extends Seeder
     {
         // Create admin account
         User::create([
-            'name' => 'Kenneth Desales',
+            'name' => 'Test User',
             'first_name' => 'Kenneth',
             'last_name' => 'Desales',
-            'email' => 'desaleskenneth12@gmail.com',
-            'password' => bcrypt('@administrator123'),
+            'email' => 'test@example.com',
+            'email_verified_at' => now(),
+            'password' => bcrypt('password'),
             'phone' => '09123456789',
             'passenger_type' => 'Student',
             'id_image_path' => null,

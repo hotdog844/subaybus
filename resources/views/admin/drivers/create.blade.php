@@ -1,4 +1,4 @@
-<form action="{{ route('admin.drivers.store') }}" method="POST">
+<form action="{{ route('admin.drivers.store') }}" method="POST" enctype="multipart/form-data">
     @csrf
     <div style="margin-bottom: 1rem;">
         <label for="name" style="display: block; margin-bottom: 0.5rem;">Driver's Full Name</label>
@@ -24,6 +24,18 @@
         <input type="text" id="contact_number" name="contact_number" value="{{ old('contact_number') }}" style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid #ccc;">
         @error('contact_number') <p style="color: red; font-size: 0.875rem;">{{ $message }}</p> @enderror
     </div>
+
+    <div style="margin-bottom: 1rem;">
+    <label for="license_image" style="display: block; margin-bottom: 0.5rem;">Upload Driver's License</label>
+    <input type="file" id="license_image" name="license_image" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+    @error('license_image') <p style="color: red; font-size: 0.875rem;">{{ $message }}</p> @enderror
+</div>
+
+<div style="margin-bottom: 1rem;">
+    <label for="cert_image" style="display: block; margin-bottom: 0.5rem;">Upload Medical Certificate</label>
+    <input type="file" id="cert_image" name="cert_image" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+    @error('cert_image') <p style="color: red; font-size: 0.875rem;">{{ $message }}</p> @enderror
+</div>
 
     {{-- New Password Field --}}
     <div style="margin-bottom: 1rem;">

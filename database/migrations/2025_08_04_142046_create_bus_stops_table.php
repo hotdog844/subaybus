@@ -6,25 +6,22 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
-{
-    Schema::create('bus_stops', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('route_id')->constrained()->onDelete('cascade');
-        $table->string('name');
-        $table->decimal('latitude', 10, 7);
-        $table->decimal('longitude', 10, 7);
-        $table->unsignedInteger('sequence'); // The order of the stop on the route (1, 2, 3...)
-        $table->timestamps();
-    });
-}
+    {
+        // We drop the table if it exists to ensure a clean slate
+        Schema::dropIfExists('bus_stops');
 
-    /**
-     * Reverse the migrations.
-     */
+        Schema::create('bus_stops', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            // Adding the location columns DIRECTLY here
+            $table->decimal('latitude', 10, 8)->nullable();
+            $table->decimal('longitude', 11, 8)->nullable();
+            $table->string('location_description')->nullable();
+            $table->timestamps();
+        });
+    }
+
     public function down(): void
     {
         Schema::dropIfExists('bus_stops');

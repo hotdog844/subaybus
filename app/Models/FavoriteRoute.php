@@ -9,8 +9,10 @@ class FavoriteRoute extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'user_id',
-        'route_id',
-    ];
+    protected $fillable = ['user_id', 'bus_id'];
+
+    public function bus()
+    {
+        return $this->belongsTo(Bus::class, 'bus_id');
+    }
 }

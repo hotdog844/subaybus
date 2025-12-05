@@ -8,26 +8,34 @@ use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
+    /**
+     * Display a listing of the users.
+     */
     public function index()
     {
-        $users = User::all();
-        return view('admin.users.index', ['users' => $users]);
+        // Get all users, ordered so that unverified (0) come before verified (1)
+        $users = User::orderBy('is_verified', 'asc')->get();
+        
+        return view('admin.users.index', compact('users'));
     }
 
+    /**
+     * Verify a user account.
+     */
     public function verify(User $user)
     {
         $user->update(['is_verified' => true]);
-        return redirect()->route('admin.users.index')->with('success', 'User verified successfully!');
-    }
 
+        return back()->with('success', 'User verified successfully!');
+    }
+    
+    /**
+     * Delete a user account.
+     */
     public function destroy(User $user)
     {
-        // Prevent admin from deleting their own account
-        if ($user->id === auth()->id()) {
-            return back()->with('error', 'You cannot delete your own account.');
-        }
-
         $user->delete();
-        return redirect()->route('admin.users.index')->with('success', 'User deleted successfully!');
+        
+        return back()->with('success', 'User deleted successfully.');
     }
 }

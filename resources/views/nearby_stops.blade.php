@@ -2,224 +2,141 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Nearby Bus Stops - SubayBus</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Nearby Stops - SubayBus</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
-        :root {
-            --primary-color: #1EEA92;
-            --header-bg: #0A5C36;
-            --text-dark: #222;
-            --text-light: #6c757d;
-            --page-bg: #f4f7fa;
-            --card-bg: #ffffff;
-            --border-color: #e9ecef;
-            --star-color: #FFD700; /* Gold color for stars */
-        }
-        * { box-sizing: border-box; }
-        body { font-family: 'Poppins', sans-serif; margin: 0; background-color: var(--page-bg); color: var(--text-dark); }
-        .header { background-color: var(--header-bg); color: white; padding: 1.2rem; display: flex; align-items: center; position: sticky; top: 0; z-index: 1000; }
-        .header .back-arrow { font-size: 1.5rem; color: white; text-decoration: none; margin-right: 1rem; }
-        .header h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
-        
-        #map {
-            width: 100%;
-            height: 40vh; /* 40% of the viewport height */
-        }
-
-        .stops-list-container {
-            padding: 1rem;
-            background-color: var(--page-bg);
-        }
-        .status-message { text-align: center; padding: 2rem; color: var(--text-light); }
-        
-        .stop-card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            margin-bottom: 1rem;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            overflow: hidden;
-        }
-        .stop-card-header {
-            padding: 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .stop-name { font-weight: 600; font-size: 1.1rem; }
-        .stop-distance { font-size: 0.9rem; color: var(--header-bg); font-weight: 500; }
-        
-        .stop-card-body {
-            padding: 0 1rem 1rem;
-            font-size: 0.9rem;
-        }
-        .route-info {
-            color: var(--text-light);
-            border-top: 1px solid var(--border-color);
-            padding-top: 1rem;
-        }
-        .buses-list-title {
-            font-weight: 500;
-            color: var(--text-dark);
-            margin-bottom: 0.5rem;
-            margin-top: 1rem;
-        }
-        .bus-pills {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-        .bus-pill {
-            background-color: var(--page-bg);
-            border: 1px solid var(--border-color);
-            padding: 0.3rem 0.8rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-        }
-        .arrival-info {
-            margin-top: 1rem;
-            padding-top: 0.8rem;
-            border-top: 1px solid var(--border-color);
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: var(--primary-color);
-        }
-
-        .favorite-star {
-            font-size: 1.5rem;
-            color: var(--border-color);
-            cursor: pointer;
-            transition: color 0.2s ease, transform 0.2s ease;
-        }
-        .favorite-star:hover {
-            transform: scale(1.2);
-        }
-        .favorite-star.is-favorite {
-            color: var(--star-color);
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; background-color: #f4f6f8; }</style>
 </head>
-<body>
+<body class="bg-gray-50 h-screen flex flex-col">
 
-    <header class="header">
-        <a href="{{ route('home') }}" class="back-arrow">&larr;</a>
-        <h1>Nearby Bus Stops</h1>
-    </header>
-
-    <div id="map"></div>
-
-    <div class="stops-list-container" id="stopsList">
-        <p class="status-message">Getting your location to find nearby stops...</p>
+    <div class="bg-white px-6 py-4 flex items-center gap-4 shadow-sm sticky top-0 z-20">
+        <a href="{{ route('mobile.dashboard') }}" class="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 hover:bg-green-50 hover:text-green-600 transition">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <div>
+            <h1 class="text-xl font-bold text-gray-800">Nearby Stops</h1>
+            <p class="text-xs text-gray-400 flex items-center gap-1">
+                <i class="fas fa-map-marker-alt text-green-500"></i>
+                <span id="user-location-status">Locating you...</span>
+            </p>
+        </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <div id="stops-list" class="flex-grow overflow-y-auto px-6 py-6 space-y-4 pb-24">
+        <div class="animate-pulse space-y-4">
+            <div class="h-20 bg-gray-200 rounded-2xl"></div>
+            <div class="h-20 bg-gray-200 rounded-2xl"></div>
+            <div class="h-20 bg-gray-200 rounded-2xl"></div>
+        </div>
+    </div>
+
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const stopsListContainer = document.getElementById('stopsList');
-        const allStops = @json($stops);
-        const map = L.map('map').setView([11.5833, 122.75], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        // 1. Get Stops Data from Laravel
+        const stops = @json($stops);
 
-        // --- FAVORITES LOGIC ---
-        let favoriteStopIds = new Set(JSON.parse(localStorage.getItem('favoriteStops')) || []);
-
-        function saveFavorites() {
-            localStorage.setItem('favoriteStops', JSON.stringify([...favoriteStopIds]));
+        // 2. Haversine Formula (Calculate distance between two GPS points)
+        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+            var R = 6371; // Radius of the earth in km
+            var dLat = deg2rad(lat2-lat1);  
+            var dLon = deg2rad(lon2-lon1); 
+            var a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2); 
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            var d = R * c; // Distance in km
+            return d;
         }
 
-        function toggleFavorite(stopId, starElement) {
-            stopId = parseInt(stopId);
-            if (favoriteStopIds.has(stopId)) {
-                favoriteStopIds.delete(stopId);
-                starElement.classList.remove('is-favorite');
-                starElement.classList.replace('fas', 'far');
-            } else {
-                favoriteStopIds.add(stopId);
-                starElement.classList.add('is-favorite');
-                starElement.classList.replace('far', 'fas');
-            }
-            saveFavorites();
+        function deg2rad(deg) {
+            return deg * (Math.PI/180)
         }
 
-        // Use event delegation to handle clicks on star icons
-        stopsListContainer.addEventListener('click', function(event) {
-            if (event.target.classList.contains('favorite-star')) {
-                const stopId = event.target.dataset.stopId;
-                toggleFavorite(stopId, event.target);
-            }
-        });
-
-        // --- GEOLOCATION AND RENDERING LOGIC ---
-        if (!navigator.geolocation) {
-            stopsListContainer.innerHTML = '<p class="status-message">Geolocation is not supported.</p>';
-            renderStopsList(allStops); // Still show all stops if geo fails
-            return;
+        // 3. Get User Location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(showPosition, showError);
+        } else {
+            document.getElementById("stops-list").innerHTML = "<div class='text-center text-gray-500 mt-10'>Geolocation is not supported by this browser.</div>";
         }
 
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const userLocation = L.latLng(position.coords.latitude, position.coords.longitude);
-                L.circleMarker(userLocation, { radius: 8, color: '#007bff', fillColor: '#fff', fillOpacity: 1 }).addTo(map).bindPopup('You are here').openPopup();
-                map.setView(userLocation, 15);
+        function showPosition(position) {
+            const userLat = position.coords.latitude;
+            const userLng = position.coords.longitude;
 
-                allStops.forEach(stop => {
-                    const stopLocation = L.latLng(stop.latitude, stop.longitude);
-                    stop.distance = userLocation.distanceTo(stopLocation);
-                    L.marker([stop.latitude, stop.longitude]).addTo(map).bindPopup(stop.name);
-                });
-                
-                allStops.sort((a, b) => a.distance - b.distance);
-                renderStopsList(allStops);
-            },
-            () => {
-                stopsListContainer.innerHTML = '<p class="status-message">Could not get your location. Showing all stops.</p>';
-                renderStopsList(allStops); // Still show all stops if geo fails
-            }
-        );
+            document.getElementById("user-location-status").innerText = "Location Found";
+            document.getElementById("user-location-status").classList.add("text-green-600");
 
-        function renderStopsList(stops) {
-            stopsListContainer.innerHTML = '';
+            // 4. Calculate Distances
+            stops.forEach(stop => {
+                stop.distance = getDistanceFromLatLonInKm(userLat, userLng, stop.latitude, stop.longitude);
+            });
+
+            // Sort nearest first
+            stops.sort((a, b) => a.distance - b.distance);
+
+            // 5. Render List
+            const container = document.getElementById("stops-list");
+            container.innerHTML = ""; // Clear skeleton
+
+            // NEW: Handle Empty List
             if (stops.length === 0) {
-                stopsListContainer.innerHTML = '<p class="status-message">No bus stops have been added to the system yet.</p>';
+                container.innerHTML = `
+                    <div class="text-center py-10 opacity-50">
+                        <i class="fas fa-map-signs text-4xl text-gray-300 mb-2"></i>
+                        <p class="text-gray-500 text-sm">No bus stops found in the database.</p>
+                        <p class="text-xs text-gray-400">Try running the BusStopSeeder.</p>
+                    </div>
+                `;
                 return;
             }
 
-            stops.forEach(stop => {
-                const distanceText = stop.distance ? `${(stop.distance / 1000).toFixed(2)} km away` : '';
-                const isFavorited = favoriteStopIds.has(stop.id);
-                const starClass = isFavorited ? 'fas is-favorite' : 'far';
-                let busPillsHtml = '<p style="font-size:0.8rem; color: #999;">No active buses on this route.</p>';
-                
-                if (stop.route && stop.route.buses && stop.route.buses.length > 0) {
-                    busPillsHtml = stop.route.buses.map(bus => `<span class="bus-pill">${bus.plate_number}</span>`).join('');
-                }
+            stops.forEach((stop, index) => {
+                // Formatting Distance
+                let distDisplay = stop.distance < 1 
+                    ? Math.round(stop.distance * 1000) + " m" 
+                    : stop.distance.toFixed(1) + " km";
 
-                const item = document.createElement('div');
-                item.className = 'stop-card';
-                item.innerHTML = `
-                    <div class="stop-card-header">
-                        <span class="stop-name">${stop.name}</span>
-                        <i class="${starClass} fa-star favorite-star" data-stop-id="${stop.id}"></i>
-                    </div>
-                    <div class="stop-card-body">
-                        <div class="route-info">
-                            Route: <strong>${stop.route ? stop.route.name : 'N/A'}</strong>
+                // Highlight the closest one
+                let badge = index === 0 
+                    ? `<span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide">Closest</span>` 
+                    : `<span class="bg-gray-100 text-gray-500 text-[10px] font-bold px-2 py-1 rounded-full">${distDisplay} away</span>`;
+
+                let borderClass = index === 0 ? "border-green-500 ring-1 ring-green-100" : "border-transparent";
+
+                // FIXED: Google Maps Link
+                const item = `
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border ${borderClass} flex items-center justify-between group active:scale-95 transition">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg shadow-sm">
+                                <i class="fas fa-map-pin"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800 text-sm">${stop.name}</h4>
+                                <p class="text-xs text-gray-400 mb-1">${stop.location_description || 'Bus Stop'}</p>
+                                ${badge}
+                            </div>
                         </div>
-                        <p class="buses-list-title">Buses on this route:</p>
-                        <div class="bus-pills">
-                            ${busPillsHtml}
-                        </div>
-                        <div class="arrival-info">
-                            Next Arrival: <strong>~ 5 min</strong> (Placeholder)
-                        </div>
+                        <a href="https://www.google.com/maps/search/?api=1&query=${stop.latitude},${stop.longitude}" target="_blank" class="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-green-500 hover:text-white transition">
+                            <i class="fas fa-location-arrow"></i>
+                        </a>
                     </div>
                 `;
-                stopsListContainer.appendChild(item);
+                container.innerHTML += item;
             });
         }
-    });
-</script>
+
+        function showError(error) {
+            document.getElementById("user-location-status").innerText = "Location Error";
+            document.getElementById("stops-list").innerHTML = `
+                <div class='text-center p-8'>
+                    <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                        <i class="fas fa-map-marked-alt"></i>
+                    </div>
+                    <h3 class="text-gray-800 font-bold mb-2">Location Required</h3>
+                    <p class="text-gray-500 text-sm">Please allow location access to see the nearest bus stops.</p>
+                </div>`;
+        }
+    </script>
 </body>
 </html>
