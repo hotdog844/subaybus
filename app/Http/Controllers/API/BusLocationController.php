@@ -4,96 +4,116 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Bus;
-use App\Models\Route as BusRoute;
+use App\Models\GpsLog;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB; // Make sure to import DB
 
 class BusLocationController extends Controller
 {
-    /**
-     * Provides a list of all defined routes for the filter pills.
-     */
-    public function getRoutes()
+    public function index()
     {
-        $routes = BusRoute::select('id', 'name')->get();
-        return response()->json($routes);
+        // 1. GET BUSES
+        // We load 'route', 'driver', and 'fareMatrix' to avoid errors
+        $buses = Bus::with(['route', 'driver', 'fareMatrix'])
+                    ->whereIn('status', [
+                        'active', 'on_route', 'On Route', 'on route',
+                        'full', 
+                        'standby', 'at terminal', 
+                        'maintenance', 
+                        'offline'
+                    ]) 
+                    ->get();
+
+        // 2. PROCESS LOCATIONS
+        $data = $buses->map(function($bus) {
+            
+            // --- A. CONFIGURATION ---
+            
+            // 1. Specific Terminals (Red/Blue at Pueblo, UV at Crossing)
+            $terminals = [
+                'red'  => ['lat' => 11.55974, 'lng' => 122.75155], // Pueblo Terminal
+                'blue' => ['lat' => 11.55974, 'lng' => 122.75155], // Pueblo Terminal
+                'uv'   => ['lat' => 11.56000, 'lng' => 122.76000], // Crossing
+            ];
+
+            // 2. Default "Parking Lot" (Roxas City Plaza)
+            $defaultLat = 11.5853; 
+            $defaultLng = 122.7511;
+
+            // Initialize variables
+            $lat = $defaultLat;
+            $lng = $defaultLng;
+
+            // --- B. LOGIC ---
+
+            // CASE 1: REAL GPS DEVICE (Green Bus)
+            if ($bus->device_id === '9176466392' || $bus->bus_number === '9176466392') {
+                $latestGps = GpsLog::where('device_id', '9176466392')->latest()->first();
+                if ($latestGps) {
+                    $lat = $latestGps->latitude;
+                    $lng = $latestGps->longitude;
+                }
+            } 
+            
+            // CASE 2: SIMULATION BUSES (Red, Blue, UV)
+            elseif (str_starts_with($bus->bus_number, 'SIM')) {
+                
+                // Identify Type
+                $type = 'red'; // default fallback
+                if (str_contains($bus->bus_number, 'BLU')) $type = 'blue';
+                if (str_contains($bus->bus_number, 'UV'))  $type = 'uv';
+
+                // Check Status
+                if (in_array(strtolower($bus->status), ['standby', 'at terminal', 'offline'])) {
+                    // Snap to their specific terminal
+                    $lat = $terminals[$type]['lat'];
+                    $lng = $terminals[$type]['lng'];
+                } else {
+                    // Move randomly AROUND their terminal
+                    $baseLat = $terminals[$type]['lat'];
+                    $baseLng = $terminals[$type]['lng'];
+                    $lat = $baseLat + (rand(-50, 50) / 8000); 
+                    $lng = $baseLng + (rand(-50, 50) / 8000);
+                }
+            }
+
+            // CASE 3: BRAND NEW / GENERIC BUSES (The Scatter Logic)
+            else {
+                // Fixed Scatter
+                $offset = $bus->id * 0.0003; 
+                $lat = $defaultLat + $offset; 
+                $lng = $defaultLng + $offset; 
+            }
+
+            // --- C. RETURN DATA ---
+            return [
+                'id' => $bus->id,
+                'bus_number' => $bus->bus_number,
+                'plate_number' => $bus->plate_number,
+                'lat' => (float)$lat,
+                'lng' => (float)$lng,
+                'status' => $bus->status,
+                'passenger_count' => $bus->passengers ?? 0, 
+                // Fix: Check if driver exists before accessing name
+                'driver_name' => $bus->driver ? $bus->driver->name : 'No Driver Assigned',
+                'route' => $bus->route ? [
+                    'id' => $bus->route->id,
+                    'name' => $bus->route->name,
+                    'color' => $bus->route->color
+                ] : null,
+
+                // --- FARE DATA ---
+                'fare' => $bus->fareMatrix ? [
+                    'name' => $bus->fareMatrix->name,     
+                    'base_price' => $bus->fareMatrix->base_fare, 
+                ] : null,
+            ];
+        });
+
+        return response()->json($data);
     }
 
-    /**
-     * A powerful search endpoint for the homepage and terminal view.
-     */
-    public function search(Request $request)
-    {
-        $query = $request->input('query', '');
-        $routeFilter = $request->input('route_id');
-
-        $busesQuery = Bus::with('driver', 'route')
-            // This is the main correction: We JOIN with the locations table.
-            ->join('locations', 'buses.id', '=', 'locations.bus_id')
-            ->whereIn('buses.status', ['on route', 'at terminal'])
-            // We also need to get the latest location for each bus.
-            ->whereIn('locations.id', function ($query) {
-                $query->select(DB::raw('MAX(id)'))
-                      ->from('locations')
-                      ->groupBy('bus_id');
-            });
-
-        if (!empty($query)) {
-            $busesQuery->where(function ($q) use ($query) {
-                $q->where('buses.plate_number', 'LIKE', "%{$query}%")
-                  ->orWhereHas('driver', function ($driverQuery) use ($query) {
-                      $driverQuery->where('name', 'LIKE', "%{$query}%");
-                  })
-                  ->orWhereHas('route', function ($routeQuery) use ($query) {
-                      $routeQuery->where('name', 'LIKE', "%{$query}%")
-                                 ->orWhere('description', 'LIKE', "%{$query}%");
-                  });
-            });
-        }
-
-        if (!empty($routeFilter)) {
-            $busesQuery->where('buses.route_id', $routeFilter);
-        }
-        
-        // Select all the necessary columns from both tables
-        $buses = $busesQuery->select('buses.*', 'locations.latitude', 'locations.longitude')->get();
-        
-        return response()->json($buses);
-    }
-
-    /**
-     * Update the location of a specific bus from a GPS device.
-     */
     public function update(Request $request)
     {
-        // This part is for the future GPS device and remains correct.
-        // It correctly inserts a new row into the 'locations' table.
-        $apiKey = $request->header('X-API-KEY');
-        if ($apiKey !== env('DEVICE_API_KEY', 'YOUR_SECRET_API_KEY')) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
-
-        $validated = $request->validate([
-            'bus_id' => 'required|integer|exists:buses,id',
-            'latitude' => 'required|numeric|between:-90,90',
-            'longitude' => 'required|numeric|between:-180,180',
-        ]);
-        
-        // This correctly creates a new location record.
-        DB::table('locations')->insert([
-            'bus_id' => $validated['bus_id'],
-            'latitude' => $validated['latitude'],
-            'longitude' => $validated['longitude'],
-            'created_at' => now(),
-            'updated_at' => now()
-        ]);
-        
-        // This correctly updates the bus status.
-        Bus::find($validated['bus_id'])->update([
-            'status' => 'on route',
-            'last_seen' => now(),
-        ]);
-
-        return response()->json(['message' => 'Location updated successfully!']);
+        return response()->json(['message' => 'GPS Endpoint Active']);
     }
 }

@@ -74,6 +74,29 @@ class LiveDemoSeeder extends Seeder
             'updated_at' => Carbon::now(),
         ]);
 
+        // --- 4. GHOST BUS C  ---
+        $ghostCImei = 'SIM_GHOST_C';
+
+        DB::table('buses')->insertOrIgnore([
+            'bus_number' => 'UV Express',
+            'plate_number' => 'SIM-003',
+            'tracker_imei' => $ghostCImei,
+            'status' => 'active',
+            'current_load' => 8,
+            'max_capacity' => 14, // UVs are smaller
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
+        ]);
+
+        // Initial Ping
+        DB::table('gps_data')->insert([
+            'imei' => $ghostCImei,
+            'lat' => 11.5853,
+            'lng' => 122.7511,
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
+        ]);
+
 // Update REAL Bus with load capacity
 DB::table('buses')->where('tracker_imei', $realImei)->update([
     'current_load' => 15, // MEDIUM

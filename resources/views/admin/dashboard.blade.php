@@ -204,22 +204,27 @@
         }
 
         // --- Chart 2: Fleet Status (Doughnut) ---
-        const ctx2 = document.getElementById('fleetStatusChart').getContext('2d');
-        new Chart(ctx2, {
-            type: 'doughnut',
-            data: {
-                labels: ['On Route', 'At Terminal', 'Offline/Maintenance'],
-                datasets: [{
-                    data: [5, 3, 2], // Sample numbers
-                    backgroundColor: ['#2ecc71', '#f1c40f', '#95a5a6'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                cutout: '70%',
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
+const ctx2 = document.getElementById('fleetStatusChart').getContext('2d');
+new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+        labels: ['On Route', 'At Terminal', 'Offline/Maintenance'],
+        datasets: [{
+            data: [
+                {{ $fleetStatus['on_route'] }}, 
+                {{ $fleetStatus['at_terminal'] }}, 
+                {{ $fleetStatus['offline'] }}
+            ], 
+            
+            backgroundColor: ['#2ecc71', '#f1c40f', '#95a5a6'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        cutout: '70%',
+        plugins: { legend: { position: 'bottom' } }
+    }
+});
     </script>
 @endsection

@@ -11,21 +11,44 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      */
-    public function run(): void
+    public function run()
     {
-        // Create admin account
-        User::create([
-            'name' => 'Test User',
-            'first_name' => 'Kenneth',
-            'last_name' => 'Desales',
-            'email' => 'test@example.com',
-            'email_verified_at' => now(),
-            'password' => bcrypt('password'),
-            'phone' => '09123456789',
-            'passenger_type' => 'Student',
-            'id_image_path' => null,
-            'is_verified' => true,
-            'is_admin' => true,
-        ]);
+        // 1. Create the ADMIN
+        \App\Models\User::firstOrCreate(
+            ['email' => 'admin@subaybus.com'],
+            [
+                'name'       => 'Admin Boss',  // ✅ Satisfies the old 'name' column
+                'first_name' => 'Admin',       // ✅ Satisfies the new column
+                'last_name'  => 'Boss',        // ✅ Satisfies the new column
+                'password'   => bcrypt('password'),
+                'role'       => 'admin',
+            ]
+        );
+
+        // 2. Create the DRIVER
+        \App\Models\User::firstOrCreate(
+            ['email' => 'driver@subaybus.com'],
+            [
+                'name'       => 'Driver Mario',
+                'first_name' => 'Driver',
+                'last_name'  => 'Mario',
+                'password'   => bcrypt('password'),
+                'role'       => 'driver',
+            ]
+        );
+
+        // 3. Create the PASSENGER (User)
+        \App\Models\User::firstOrCreate(
+            ['email' => 'juan@gmail.com'],
+            [
+                'name'       => 'Juan Dela Cruz',
+                'first_name' => 'Juan',
+                'last_name'  => 'Dela Cruz',
+                'password'   => bcrypt('password'),
+                'role'       => 'user',
+            ]
+        );
+        
+        echo "✅ Test accounts created successfully!\n";
     }
 }

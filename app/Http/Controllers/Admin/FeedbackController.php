@@ -3,26 +3,55 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Feedback;
-use Illuminate\Http\Request;
+use Illuminate\Http\Request;           // <--- FIXED: Added this import
+use Illuminate\Support\Facades\DB;     // <--- FIXED: Added this import
 
 class FeedbackController extends Controller
 {
-    public function index()
+    public function index(Request $request) // <--- Now works because of the import above
     {
-        $feedbackItems = Feedback::latest()->get(); 
-        return view('admin.feedback.index', ['feedbackItems' => $feedbackItems]);
+        // 1. CALCULATE STATS
+        $totalFeedback = DB::table('feedback')->count();
+        $unreadCount = DB::table('feedback')->where('status', 'new')->count();
+        $avgRating = DB::table('feedback')->avg('rating') ?? 0;
+
+        // 2. GET DATA WITH SEARCH
+        $query = DB::table('feedback')
+            ->join('users', 'feedback.user_id', '=', 'users.id')
+            ->leftJoin('buses', 'feedback.bus_id', '=', 'buses.id')
+            ->select(
+                'feedback.*', 
+                'users.name as user_name', 
+                'users.email as user_email',
+                'buses.plate_number as bus_plate'
+            );
+
+        // Search Logic
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where('users.name', 'like', "%{$search}%")
+                  ->orWhere('buses.plate_number', 'like', "%{$search}%");
+        }
+
+        $feedbackItems = $query->orderBy('feedback.created_at', 'desc')->paginate(10);
+
+        return view('admin.feedback.index', compact('feedbackItems', 'totalFeedback', 'unreadCount', 'avgRating'));
     }
 
-    public function markAsRead(Feedback $feedback)
+    // Mark as Read
+    public function markAsRead($id)
     {
-        $feedback->update(['status' => 'read']);
-        return redirect()->route('admin.feedback.index')->with('success', 'Feedback marked as read.');
+        DB::table('feedback')
+            ->where('id', $id)
+            ->update(['status' => 'read', 'updated_at' => now()]);
+            
+        return back()->with('success', 'Feedback marked as read.');
     }
 
-    public function destroy(Feedback $feedback)
+    // Delete
+    public function destroy($id)
     {
-        $feedback->delete();
-        return redirect()->route('admin.feedback.index')->with('success', 'Feedback message deleted.');
+        DB::table('feedback')->where('id', $id)->delete();
+        return back()->with('success', 'Feedback deleted.');
     }
 }

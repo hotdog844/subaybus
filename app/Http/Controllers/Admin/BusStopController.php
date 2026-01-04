@@ -40,7 +40,7 @@ class BusStopController extends Controller
 
         $route->busStops()->create($validated);
 
-        return redirect()->route('admin.routes.stops.index', $route)->with('success', 'Stop added successfully!');
+        return redirect()->route('admin.routes.stops.index', $route->id)->with('success', 'Stop added successfully!');
     }
 
     // ... We will add edit and delete methods later ...

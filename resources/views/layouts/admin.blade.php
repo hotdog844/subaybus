@@ -4,7 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Admin Dashboard') - SubayBus</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    
+    @yield('styles')
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
@@ -20,11 +26,7 @@
             --shadow-color: rgba(0, 0, 0, 0.1);
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: 'Poppins', sans-serif;
@@ -32,9 +34,7 @@
             color: var(--text-dark);
         }
 
-        .admin-wrapper {
-            display: flex;
-        }
+        .admin-wrapper { display: flex; }
 
         .sidebar {
             width: 260px;
@@ -45,7 +45,7 @@
             left: 0;
             top: 0;
             transition: transform 0.3s ease-in-out;
-            z-index: 101; /* Must be higher than overlay */
+            z-index: 101;
         }
         .sidebar-header {
             padding: 1.5rem;
@@ -54,9 +54,8 @@
             font-weight: 700;
             border-bottom: 1px solid #34495e;
         }
-        .sidebar-nav {
-            padding-top: 1rem;
-        }
+        .sidebar-nav { padding-top: 1rem; }
+        
         .sidebar-nav a {
             display: flex;
             align-items: center;
@@ -69,28 +68,26 @@
         }
         .sidebar-nav a:hover, .sidebar-nav a.active {
             background-color: #34495e;
+            border-left: 4px solid var(--primary-color); /* Visual indicator */
         }
         .sidebar-nav a .icon {
             width: 20px;
             text-align: center;
         }
 
-        /* NEW: Sidebar Overlay for mobile */
         .sidebar-overlay {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.5);
             z-index: 100;
         }
 
         .main-content {
             flex-grow: 1;
-            padding-left: 260px; /* Space for the sidebar */
+            padding-left: 260px;
             transition: padding-left 0.3s ease-in-out;
+            width: 100%; /* Ensure full width */
         }
         
         .header {
@@ -120,53 +117,21 @@
             color: var(--text-dark);
         }
 
-        .page-content {
-            padding: 2rem;
-        }
-        
-        /* General Button Styles */
-        .btn {
-            display: inline-block;
-            padding: 0.6rem 1.2rem;
-            border: none;
-            border-radius: 6px;
-            font-weight: 500;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .btn-primary {
-            background-color: var(--primary-color);
-            color: white !important;
-        }
-        .btn-primary:hover {
-            background-color: #18392B; /* Darker green on hover */
-        }
+        .page-content { padding: 2rem; }
 
-
-        /* Responsive Design for the Burger Menu */
+        /* Responsive Design */
         @media (max-width: 992px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-            .sidebar.is-open {
-                transform: translateX(0);
-            }
-            /* NEW: Show overlay when sidebar is open */
-            .sidebar.is-open + .sidebar-overlay {
-                display: block;
-            }
-            .main-content {
-                padding-left: 0;
-            }
-            .burger-menu {
-                display: block;
-            }
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.is-open { transform: translateX(0); }
+            .sidebar.is-open + .sidebar-overlay { display: block; }
+            .main-content { padding-left: 0; }
+            .burger-menu { display: block; }
         }
     </style>
 </head>
 <body>
 <div class="admin-wrapper">
+    
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             SubayBus Admin
@@ -190,6 +155,17 @@
             <a href="{{ route('admin.feedback.index') }}" class="{{ request()->routeIs('admin.feedback.*') ? 'active' : '' }}">
                 <i class="fas fa-comment-dots icon"></i> View Feedback
             </a>
+            
+            <a href="{{ route('admin.fares.index') }}" class="{{ request()->routeIs('admin.fares.*') ? 'active' : '' }}">
+                <i class="fas fa-calculator icon"></i> Fare Matrix
+            </a>
+            <a href="{{ route('admin.reports.index') }}" class="{{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
+                <i class="fas fa-chart-line icon"></i> Reports
+            </a>
+            <a href="{{ route('admin.alerts.index') }}" class="flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white rounded-xl transition">
+    <i class="fas fa-bullhorn w-5"></i>
+    <span class="font-medium">Broadcasts</span>
+</a>
         </nav>
     </aside>
 
@@ -237,5 +213,8 @@
             });
         });
     </script>
+    
+    @yield('scripts')
+
 </body>
 </html>

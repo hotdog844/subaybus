@@ -1,63 +1,142 @@
 @extends('layouts.admin')
 
-@section('title', 'Edit Bus')
-
 @section('content')
-    <h2>Edit Bus #{{ $bus->id }}</h2>
+<script src="https://cdn.tailwindcss.com"></script>
 
-    <div style="background: white; padding: 1.5rem; border-radius: 8px; margin-top: 1.5rem;">
-        <form action="{{ route('admin.buses.update', $bus) }}" method="POST">
-            @csrf
-            @method('PUT')
-
-            <div style="margin-bottom: 1rem;">
-                <label for="plate_number" style="display: block; margin-bottom: 0.5rem;">Plate Number</label>
-                <input type="text" id="plate_number" name="plate_number" value="{{ old('plate_number', $bus->plate_number) }}" required style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid #ccc;">
+<div class="p-8 bg-gray-100 min-h-screen">
+    <div class="max-w-4xl mx-auto">
+        
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-extrabold text-gray-900">Edit Bus Configuration</h1>
+                <p class="text-gray-500 mt-1">Editing unit: <span class="font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded">{{ $bus->bus_number }}</span></p>
             </div>
+            
+            <form action="{{ route('admin.buses.destroy', $bus->id) }}" method="POST" onsubmit="return confirm('Are you sure?');">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="bg-white border border-red-200 text-red-600 hover:bg-red-50 font-bold py-2 px-4 rounded-lg shadow-sm transition flex items-center gap-2">
+                    <span>Delete Unit</span>
+                </button>
+            </form>
+        </div>
 
-            {{-- Driver Dropdown --}}
-            <div style="margin-bottom: 1rem;">
-                <label for="driver_id" style="display: block; margin-bottom: 0.5rem;">Assign Driver</label>
-                <select name="driver_id" id="driver_id" style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid #ccc;">
-                    <option value="">-- Unassigned --</option>
-                    @foreach($drivers as $driver)
-                        <option value="{{ $driver->id }}" @if(old('driver_id', $bus->driver_id) == $driver->id) selected @endif>
-                            {{ $driver->name }} ({{ $driver->license_number }})
-                        </option>
+        @if ($errors->any())
+            <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded shadow-sm">
+                <p class="font-bold">Please check the inputs:</p>
+                <ul class="list-disc list-inside text-sm">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
                     @endforeach
-                </select>
+                </ul>
             </div>
+        @endif
 
-            {{-- Route Dropdown --}}
-<div style="margin-bottom: 1rem;">
-    <label for="route_id" style="display: block; margin-bottom: 0.5rem;">Assign Route</label>
-    <select name="route_id" id="route_id" style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid #ccc;">
-        <option value="">-- Unassigned --</option>
-        @foreach($routes as $route)
-            {{-- For the edit form, this line will pre-select the correct route --}}
-            <option value="{{ $route->id }}" @if(isset($bus) && $bus->route_id == $route->id) selected @endif>
-                {{ $route->name }}
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+            <form action="{{ route('admin.buses.update', $bus->id) }}" method="POST" class="p-8">
+                @csrf
+                @method('PUT') 
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Bus Identity (ID)</label>
+                            <input type="text" name="bus_number" value="{{ old('bus_number', $bus->bus_number) }}" 
+                                   class="w-full bg-gray-50 text-gray-900 border border-gray-200 rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 focus:bg-white transition font-mono" required>
+                            <p class="text-xs text-gray-400 mt-2">Set to <strong>SIM-BLU</strong> to activate simulation.</p>
+                        </div>
+
+                        <div>
+    <label class="block text-gray-700 text-xs font-bold uppercase tracking-wider mb-2">Operational Status</label>
+    <select name="status" class="w-full bg-white border border-gray-300 text-gray-900 rounded-lg p-3 focus:ring-2 focus:blue-500 outline-none">
+        
+        <option value="on route" {{ $bus->status == 'on route' || $bus->status == 'active' ? 'selected' : '' }}>
+            🟢 On Route (Moving)
+        </option>
+        
+        <option value="at terminal" {{ $bus->status == 'at terminal' || $bus->status == 'standby' ? 'selected' : '' }}>
+            🟡 At Terminal (Stopped)
+        </option>
+        
+        <option value="maintenance" {{ $bus->status == 'maintenance' ? 'selected' : '' }}>
+            🔴 Maintenance
+        </option>
+
+        <option value="offline" {{ $bus->status == 'offline' ? 'selected' : '' }}>
+            ⚫ Offline
+        </option>
+
+    </select>
+</div>
+                        
+                        <div>
+                             <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Capacity</label>
+                             <input type="number" name="capacity" value="{{ old('capacity', $bus->capacity ?? 40) }}" class="w-full border border-gray-200 rounded-lg py-3 px-4">
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div class="bg-blue-50 p-6 rounded-xl border border-blue-100">
+                            <label class="block text-xs font-bold text-blue-800 uppercase tracking-wide mb-2">Assigned Driver</label>
+                            <select name="driver_id" class="w-full bg-white border border-blue-200 text-gray-900 rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 transition">
+                                <option value="">-- No Driver --</option>
+                                @foreach($drivers as $driver)
+                                    <option value="{{ $driver->id }}" {{ $bus->driver_id == $driver->id ? 'selected' : '' }}>
+                                        👤 {{ $driver->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <p class="text-xs text-blue-400 mt-2">This driver will appear on the mobile app.</p>
+                        </div>
+
+                        <div class="mb-6">
+    <label class="block text-gray-700 text-xs font-bold uppercase tracking-wider mb-2">
+        Fare Type (Matrix)
+    </label>
+    <select name="fare_matrix_id" class="w-full bg-white border border-gray-300 text-gray-900 rounded-lg p-3 focus:ring-2 focus:blue-500 outline-none">
+        <option value="">-- Default / Standard Fare --</option>
+        
+        @foreach($fares as $fare)
+            <option value="{{ $fare->id }}" 
+                {{ (isset($bus) && $bus->fare_matrix_id == $fare->id) ? 'selected' : '' }}>
+                
+                💰 {{ $fare->name ? $fare->name : 'Matrix #' . $fare->id }} (₱{{ $fare->base_fare ?? '0.00' }})
             </option>
         @endforeach
+        
     </select>
-    @error('route_id') <p style="color: red; font-size: 0.875rem;">{{ $message }}</p> @enderror
 </div>
 
-            <div style="margin-bottom: 1rem;">
-                <label for="fare" style="display: block; margin-bottom: 0.5rem;">Fare</label>
-                <input type="number" step="0.01" id="fare" name="fare" value="{{ old('fare', $bus->fare) }}" required style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid #ccc;">
-            </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Assigned Route</label>
+                            <select name="route_id" class="w-full bg-white border border-gray-200 text-gray-900 rounded-lg py-3 px-4 focus:ring-2 focus:ring-blue-500 transition">
+                                <option value="">-- No Route --</option>
+                                @foreach($routes as $route)
+                                    <option value="{{ $route->id }}" {{ $bus->route_id == $route->id ? 'selected' : '' }}>
+                                        📍 {{ $route->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Plate Number</label>
+                            <input type="text" name="plate_number" value="{{ old('plate_number', $bus->plate_number) }}" class="w-full border border-gray-200 rounded-lg py-3 px-4">
+                        </div>
+                    </div>
+                </div>
 
-            <div style="margin-bottom: 1rem;">
-                <label for="status" style="display: block; margin-bottom: 0.5rem;">Status</label>
-                <select name="status" id="status" required style="width: 100%; padding: 0.5rem; border-radius: 4px; border: 1px solid #ccc;">
-                    <option value="at terminal" @if(old('status', $bus->status) == 'at terminal') selected @endif>At Terminal</option>
-                    <option value="offline" @if(old('status', 'offline') == $bus->status) selected @endif>Offline</option>
-                    <option value="on route" @if(old('status', $bus->status) == 'on route') selected @endif>On Route</option>
-                </select>
-            </div>
+                <input type="hidden" name="device_id" value="{{ $bus->device_id ?? $bus->bus_number }}">
 
-            <button type="submit" style="background: #007bff; color: white; padding: 0.75rem 1.5rem; text-decoration: none; border-radius: 4px; border: none; cursor: pointer;">Update Bus</button>
-        </form>
+                <div class="mt-8 pt-6 border-t border-gray-100 flex justify-end gap-4">
+                    <a href="{{ route('admin.buses.index') }}" class="py-3 px-6 text-gray-500 font-bold hover:text-gray-800 transition">Cancel</a>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transform active:scale-95 transition">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
+</div>
 @endsection

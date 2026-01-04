@@ -4,60 +4,136 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Bus;
-use App\Models\Driver;
-use App\Models\Route as BusRoute; // Use alias
+use App\Models\User;  // For Drivers
+use App\Models\Route; // For assigning routes
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class BusController extends Controller
 {
+    /**
+     * Display a listing of the buses.
+     */
     public function index()
     {
-        $buses = Bus::with('driver', 'route')->get(); // Load relationships for the list
-        return view('admin.buses.index', ['buses' => $buses]);
+        // Fixed: changed 'assignedRoute' to 'route' (Standard convention)
+        // Added: 'fareMatrix' so you can see the fare type in the list
+        $buses = Bus::with(['driver', 'route', 'fareMatrix'])->latest()->paginate(10);
+        return view('admin.buses.index', compact('buses'));
     }
 
+    /**
+     * Show the form for creating a new bus.
+     */
     public function create()
     {
-        $drivers = Driver::all();
-        $routes = BusRoute::all(); // Get all routes
-        return view('admin.buses.create', compact('drivers', 'routes'));
+        $routes = Route::all();
+        // We fetch drivers from the USERS table
+        $drivers = User::where('role', 'driver')->get();
+        $fares = \App\Models\FareMatrix::all(); 
+
+        return view('admin.buses.create', compact('routes', 'drivers', 'fares'));
     }
 
+    /**
+     * Store a newly created bus in storage.
+     */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'plate_number' => 'required|string|unique:buses,plate_number',
-            'driver_id' => 'nullable|exists:drivers,id',
-            'route_id' => 'nullable|exists:routes,id', // Validate the route_id
-            'fare' => 'required|numeric|min:0',
-            'status' => 'required|in:at terminal,on route,offline',
+        // 1. Validate the input
+        $request->validate([
+            'bus_number' => 'required|string|max:255',
+            'plate_number' => 'required|string|max:255|unique:buses',
+            'route_id' => 'nullable|exists:routes,id',
+            'driver_id' => 'nullable|exists:users,id', // CONSISTENT: Checks Users table
+            'status' => 'required|string',
+            'capacity' => 'nullable|integer',
+            'fare_matrix_id' => 'nullable|exists:fare_matrices,id',
         ]);
 
-        Bus::create($validated);
-        return redirect()->route('admin.buses.index')->with('success', 'Bus added successfully!');
-    }
-
-    public function edit(Bus $bus)
-    {
-        $drivers = Driver::all();
-        $routes = BusRoute::all(); // Get all routes
-        return view('admin.buses.edit', compact('bus', 'drivers', 'routes'));
-    }
-
-    public function update(Request $request, Bus $bus)
-    {
-        $validated = $request->validate([
-            'plate_number' => ['required', 'string', Rule::unique('buses')->ignore($bus->id)],
-            'driver_id' => 'nullable|exists:drivers,id',
-            'route_id' => 'nullable|exists:routes,id', // Validate the route_id
-            'fare' => 'required|numeric|min:0',
-            'status' => 'required|in:at terminal,on route,offline',
+        // 2. Create the Bus
+        Bus::create([
+            'bus_number' => $request->bus_number,
+            'plate_number' => $request->plate_number,
+            'route_id' => $request->route_id,
+            'driver_id' => $request->driver_id,
+            'status' => $request->status,
+            'max_capacity' => $request->capacity ?? 40,
+            'fare_matrix_id' => $request->fare_matrix_id,
         ]);
 
+        return redirect()->route('admin.buses.index')->with('success', 'Bus created successfully!');
+    }
+
+    /**
+     * Show the form for editing the specified bus.
+     */
+    public function edit($id)
+    {
+        $bus = Bus::findOrFail($id);
+        $routes = Route::all();
+        // CONSISTENT: Fetch from Users table
+        $drivers = User::where('role', 'driver')->get();
+        $fares = \App\Models\FareMatrix::all();
+
+        return view('admin.buses.edit', compact('bus', 'routes', 'drivers', 'fares'));
+    }
+
+    /**
+     * Update the specified bus in storage.
+     */
+    public function update(Request $request, $id)
+    {
+        $bus = Bus::findOrFail($id);
+
+        // 1. VALIDATION
+        $validated = $request->validate([
+            'bus_number' => 'required|string|max:255',
+            'plate_number' => 'nullable|string|max:255',
+            'status' => 'required|string',
+            'route_id' => 'nullable|exists:routes,id',
+            
+            // --- FIXED: CONSISTENCY ---
+            // Changed 'exists:drivers,id' to 'exists:users,id'
+            // This now matches your create/edit logic.
+            'driver_id' => 'nullable|exists:users,id', 
+            
+            // --- ADDED MISSING FIELD ---
+            // You forgot this in your previous code!
+            'fare_matrix_id' => 'nullable|exists:fare_matrices,id',
+
+            'capacity' => 'nullable|integer',
+            // Note: Removed 'type' and 'device_id' from validation 
+            // unless you actually have input fields for them in the form.
+        ]);
+
+        // 2. SECURITY CHECK (Protect your GPS Unit)
+        // Prevent changing the device settings of the main unit accidentally
+        if ($bus->device_id === '9176466392') {
+             // We allow updates, but we ensure the Device ID cannot be overwritten if passed
+             unset($validated['device_id']);
+        }
+
+        // 3. SAVE THE DATA
         $bus->update($validated);
-        return redirect()->route('admin.buses.index')->with('success', 'Bus updated successfully!');
+
+        return redirect()->route('admin.buses.index')->with('success', 'Bus updated successfully');
     }
 
-    // ... destroy method ...
+    /**
+     * Remove the specified bus from storage.
+     */
+    public function destroy($id)
+    {
+        $bus = Bus::findOrFail($id);
+
+        // --- SECURITY PROTECTION ---
+        // Prevent deletion of the critical GPS unit
+        if ($bus->device_id === '9176466392' || $bus->bus_number === '9176466392') {
+            return redirect()->back()->with('error', 'SECURITY ALERT: This Bus Unit (9176466392) is protected and cannot be deleted.');
+        }
+        // ---------------------------
+
+        $bus->delete();
+        return redirect()->route('admin.buses.index')->with('success', 'Bus deleted successfully.');
+    }
 }

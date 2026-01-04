@@ -4,40 +4,44 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\Favorite;
 use Illuminate\Support\Facades\Auth;
 
-class FavoriteRouteController extends Controller
+class FavoritesController extends Controller
 {
-    /**
-     * Return a list of the authenticated user's favorite route IDs.
-     */
-    public function index()
+    // Return a list of Bus IDs that the user has favorited
+    public function getFavoriteIds()
     {
-        $favoriteRouteIds = Auth::user()->favoriteRoutes()->pluck('routes.id');
-        return response()->json($favoriteRouteIds);
-    }
+        // If user is not logged in, return empty list
+        if (!Auth::check()) {
+            return response()->json([]);
+        }
 
-    /**
-     * Add or remove a route from the user's favorites.
-     */
+        $ids = Favorite::where('user_id', Auth::id())
+            ->pluck('bus_id'); // Just get the ID numbers
+
+        return response()->json($ids);
+    }
+    
+    // Toggle Favorite (Add/Remove)
     public function toggle(Request $request)
     {
-        $validated = $request->validate([
-            'route_id' => 'required|exists:routes,id',
-        ]);
-
+        $request->validate(['bus_id' => 'required|exists:buses,id']);
         $user = Auth::user();
-        $routeId = $validated['route_id'];
 
-        // toggle() will attach if not attached, and detach if already attached.
-        // It returns an array indicating what was done.
-        $result = $user->favoriteRoutes()->toggle($routeId);
+        $existing = Favorite::where('user_id', $user->id)
+            ->where('bus_id', $request->bus_id)
+            ->first();
 
-        $status = count($result['attached']) > 0 ? 'favorited' : 'unfavorited';
-
-        return response()->json([
-            'status' => $status,
-            'message' => "Route successfully {$status}."
-        ]);
+        if ($existing) {
+            $existing->delete();
+            return response()->json(['status' => 'removed']);
+        } else {
+            Favorite::create([
+                'user_id' => $user->id,
+                'bus_id' => $request->bus_id
+            ]);
+            return response()->json(['status' => 'added']);
+        }
     }
 }

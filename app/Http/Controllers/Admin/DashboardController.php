@@ -17,14 +17,32 @@ class DashboardController extends Controller
     {
         // 1. Basic Stats Cards
         $stats = [
-            'users' => User::count(),
-            'drivers' => Driver::count(),
+            'users' => User::where('role', 'passenger')->count(), // Count only passengers
+            'drivers' => Driver::count(), // Or User::where('role', 'driver')->count() if you use Users table
             'buses' => Bus::count(),
             'routes' => BusRoute::count(),
             'feedback' => Feedback::count(),
         ];
 
-        // 2. Passenger Growth Data (The magic part)
+        // 2. FLEET STATUS (Updated with Broader Matching)
+        $fleetStatus = [
+            // Look for ANY of these words for "On Route"
+            'on_route' => Bus::whereIn('status', [
+                'active', 'full', 'on_route', 'On Route', 'driving'
+            ])->count(),
+            
+            // Look for ANY of these words for "At Terminal"
+            'at_terminal' => Bus::whereIn('status', [
+                'standby', 'terminal', 'at_terminal', 'At Terminal', 'idle'
+            ])->count(),
+            
+            // Look for ANY of these words for "Offline"
+            'offline' => Bus::whereIn('status', [
+                'offline', 'maintenance', 'emergency', 'inactive', 'Offline'
+            ])->count(),
+        ];
+
+        // 3. Passenger Growth Data (Your existing charts)
         
         // Daily (Last 30 Days)
         $daily = User::select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) as count'))
@@ -61,7 +79,7 @@ class DashboardController extends Controller
                 'data' => $daily->pluck('count'),
             ],
             'weekly' => [
-                'labels' => $weekly->pluck('week_start'), // Shows the start date of the week
+                'labels' => $weekly->pluck('week_start'),
                 'data' => $weekly->pluck('count'),
             ],
             'monthly' => [
@@ -74,6 +92,7 @@ class DashboardController extends Controller
             ],
         ];
 
-        return view('admin.dashboard', compact('stats', 'chartData'));
+        // Pass 'fleetStatus' to the view along with the others
+        return view('admin.dashboard', compact('stats', 'chartData', 'fleetStatus'));
     }
 }

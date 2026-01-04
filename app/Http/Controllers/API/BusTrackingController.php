@@ -36,11 +36,14 @@ class BusTrackingController extends Controller
 
     // GET: /buses
     public function getBusLocations()
-    {
-        $buses = Bus::with(['locations' => function ($query) {
-            $query->latest()->limit(1); // only latest location
-        }])->get();
+{
+    $buses = \App\Models\Bus::where('status', 'active')
+        // We MUST use 'with' to attach the route data
+        ->with(['route' => function($q) {
+            $q->select('id', 'name', 'start_location', 'end_location', 'origin_lat', 'origin_lng', 'dest_lat', 'dest_lng');
+        }])
+        ->get();
 
-        return response()->json($buses);
-    }
+    return response()->json($buses);
+}
 }
