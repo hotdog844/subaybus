@@ -4,23 +4,29 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; // This is the correct line
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Auth;
 
 class IsAdmin
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
     public function handle(Request $request, Closure $next): Response
     {
-        // This will now use the correct Auth system
-        if (Auth::check() && Auth::user()->is_admin) {
+        // 1. Check if user is logged in at all
+        if (!Auth::check()) {
+            return redirect('/login');
+        }
+
+        // 2. Get the role
+        $role = Auth::user()->role;
+
+        // 🛑 DEBUG CHECK: If this logic matches, they get in.
+        // We check for "admin" (lowercase), "Admin" (Capital), or 1 (integer)
+        if ($role === 'admin' || $role === 'Admin' || $role == 1) {
             return $next($request);
         }
 
-        return redirect('/home');
+        // 3. If they fail the check, show an error instead of redirecting
+        // This stops the "User Page" redirect and shows us the problem.
+        abort(403, "ACCESS DENIED. Your role is: " . $role);
     }
 }

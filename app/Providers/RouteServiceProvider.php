@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Route;
 
 class RouteServiceProvider extends ServiceProvider
 {
-    public const HOME = 'mobile.home'; // use named route
+    public const HOME = '/mobile/dashboard'; // use named route
 
     public function boot(): void
     {

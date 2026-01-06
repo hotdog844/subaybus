@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\Bus; 
 use Carbon\Carbon;
@@ -10,10 +11,15 @@ use Carbon\Carbon;
 class MobileDriverController extends Controller
 {
     // 1. Show the "Login" screen
+    // Show the login form
     public function login()
     {
-        $buses = DB::table('buses')->get();
-        return view('driver', ['buses' => $buses]);
+        // If already logged in as driver, go to menu
+        if (Auth::check() && Auth::user()->role === 'driver') {
+            return redirect()->route('driver.menu');
+        }
+
+        return view('driver.login'); // Points to resources/views/driver/login.blade.php
     }
 
     // 2. Handle the "Login"

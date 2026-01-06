@@ -136,37 +136,49 @@
         <div class="sidebar-header">
             SubayBus Admin
         </div>
-        <nav class="sidebar-nav">
-            <a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
-                <i class="fas fa-tachometer-alt icon"></i> Dashboard
-            </a>
-            <a href="{{ route('admin.buses.index') }}" class="{{ request()->routeIs('admin.buses.*') ? 'active' : '' }}">
-                <i class="fas fa-bus icon"></i> Manage Buses
-            </a>
-            <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
-                <i class="fas fa-users icon"></i> Manage Users
-            </a>
-            <a href="{{ route('admin.routes.index') }}" class="{{ request()->routeIs('admin.routes.*') ? 'active' : '' }}">
-                <i class="fas fa-road icon"></i> Manage Routes
-            </a>
-            <a href="{{ route('admin.drivers.index') }}" class="{{ request()->routeIs('admin.drivers.*') ? 'active' : '' }}">
-                <i class="fas fa-id-card icon"></i> Manage Drivers
-            </a>
-            <a href="{{ route('admin.feedback.index') }}" class="{{ request()->routeIs('admin.feedback.*') ? 'active' : '' }}">
-                <i class="fas fa-comment-dots icon"></i> View Feedback
-            </a>
-            
-            <a href="{{ route('admin.fares.index') }}" class="{{ request()->routeIs('admin.fares.*') ? 'active' : '' }}">
-                <i class="fas fa-calculator icon"></i> Fare Matrix
-            </a>
-            <a href="{{ route('admin.reports.index') }}" class="{{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
-                <i class="fas fa-chart-line icon"></i> Reports
-            </a>
-            <a href="{{ route('admin.alerts.index') }}" class="flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white rounded-xl transition">
-    <i class="fas fa-bullhorn w-5"></i>
-    <span class="font-medium">Broadcasts</span>
-</a>
-        </nav>
+        <div class="flex flex-col h-[calc(100vh-73px)] justify-between">
+            <nav class="sidebar-nav overflow-y-auto">
+                <a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+                    <i class="fas fa-tachometer-alt icon"></i> Dashboard
+                </a>
+                <a href="{{ route('admin.buses.index') }}" class="{{ request()->routeIs('admin.buses.*') ? 'active' : '' }}">
+                    <i class="fas fa-bus icon"></i> Manage Buses
+                </a>
+                <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+                    <i class="fas fa-users icon"></i> Manage Users
+                </a>
+                <a href="{{ route('admin.routes.index') }}" class="{{ request()->routeIs('admin.routes.*') ? 'active' : '' }}">
+                    <i class="fas fa-road icon"></i> Manage Routes
+                </a>
+                <a href="{{ route('admin.drivers.index') }}" class="{{ request()->routeIs('admin.drivers.*') ? 'active' : '' }}">
+                    <i class="fas fa-id-card icon"></i> Manage Drivers
+                </a>
+                <a href="{{ route('admin.feedback.index') }}" class="{{ request()->routeIs('admin.feedback.*') ? 'active' : '' }}">
+                    <i class="fas fa-comment-dots icon"></i> View Feedback
+                </a>
+                <a href="{{ route('admin.fares.index') }}" class="{{ request()->routeIs('admin.fares.*') ? 'active' : '' }}">
+                    <i class="fas fa-calculator icon"></i> Fare Matrix
+                </a>
+                <a href="{{ route('admin.reports.index') }}" class="{{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
+                    <i class="fas fa-chart-line icon"></i> Reports
+                </a>
+                <a href="{{ route('admin.alerts.index') }}" class="{{ request()->routeIs('admin.alerts.index') ? 'active' : '' }}">
+                    <i class="fas fa-bullhorn icon"></i> Broadcasts
+                </a>
+            </nav>
+
+            <div class="border-t border-[#34495e] p-4">
+                <a href="#" 
+                   onclick="event.preventDefault(); document.getElementById('logout-form').submit();"
+                   class="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-lg transition-all font-medium">
+                    <i class="fas fa-sign-out-alt w-5 text-center"></i>
+                    <span>Sign Out</span>
+                </a>
+                <form id="logout-form" action="{{ route('logout') }}" method="POST" class="hidden">
+                    @csrf
+                </form>
+            </div>
+        </div>
     </aside>
 
     <div class="sidebar-overlay" id="sidebar-overlay"></div>

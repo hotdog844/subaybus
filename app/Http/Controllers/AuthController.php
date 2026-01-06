@@ -26,30 +26,33 @@ class AuthController extends Controller
         'password' => ['required'],
     ]);
 
-    // 2. Attempt Login
     if (Auth::attempt($credentials)) {
-        $request->session()->regenerate();
+            $request->session()->regenerate();
+            
+            // 🛑 DEBUGGING START (Add these lines temporarily)
+            $role = Auth::user()->role;
+            
+            // If the role isn't matching, this will show us WHY.
+            // Example: Is it "Admin" (capital A)? Or "admin " (with a space)?
+            // dd("The System sees your role as: " . $role); 
+            // 🛑 DEBUGGING END
 
-        // ✅ 3. REDIRECT BASED ON ROLE (The Fix)
-        $role = Auth::user()->role;
-
-        if ($role === 'driver') {
-            return redirect()->route('driver.menu'); // Goes to "Select Unit"
+            // 1. Check Admin
+            if ($role === 'admin') {
+                return redirect('/admin/dashboard');
+            }
+            
+            // 2. Check Driver
+            if ($role === 'driver') {
+                return redirect()->route('driver.menu');
+            }
+            
+            // 3. Default (Passenger)
+            return redirect('/mobile/dashboard');
         }
         
-        if ($role === 'admin') {
-            return redirect('/admin/dashboard');
-        }
-
-        // Default for Passengers
-        return redirect('/mobile/dashboard'); 
+        return back()->withErrors(['email' => 'Failed']);
     }
-
-    // 4. Failed Login
-    return back()->withErrors([
-        'email' => 'The provided credentials do not match our records.',
-    ]);
-}
 
     /**
      * Log the user out of the application.

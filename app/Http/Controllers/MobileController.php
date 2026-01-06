@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Trip;
 use App\Models\Rating;
 use App\Models\Bus;
+use App\Models\BusStop;
 
 class MobileController extends Controller
 {
@@ -95,5 +96,12 @@ public function updateProfile(Request $request)
     return redirect('/mobile/profile')->with('success', 'Profile updated.');
 }
 
+public function nearby()
+{
+    // Fetch all stops. Ensure your BusStop model has 'latitude' and 'longitude' columns
+    $stops = \App\Models\BusStop::all(); 
+
+    return view('mobile.nearby', compact('stops'));
+}
     
 }

@@ -72,6 +72,20 @@
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
 }
+
+@keyframes pulse-ring {
+    0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.2); }
+    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(0, 0, 0, 0); }
+    100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+}
+
+.pin-pulse {
+    /* Background color is now set inline by JS */
+    border: 3px solid white;
+    border-radius: 50%;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4); /* Stronger shadow */
+    animation: pulse-ring 2s infinite;
+}
     </style>
 </head>
 <body class="bg-gray-100 antialiased h-screen w-screen relative">
@@ -88,6 +102,7 @@
     </div>
 
     <div id="search-results" class="flex-grow overflow-y-auto p-4 no-scrollbar">
+        <div id="live-search-container" class="hidden space-y-2 mb-4"></div>
         <div id="default-search-content" class="mt-4">
             
             <a href="{{ route('mobile.planner') }}" class="block mb-6">
@@ -150,18 +165,6 @@
     </div>
 </div>
 
-<div class="absolute top-28 right-4 z-40">
-    <button id="btn-notifications" class="w-11 h-11 bg-white rounded-full shadow-md flex items-center justify-center text-gray-600 hover:text-green-600 active:scale-95 transition relative">
-        <i class="fas fa-bell"></i>
-        <div class="absolute top-2 right-3 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></div>
-    </button>
-</div>
-
-<button id="btn-hail" class="glass-panel w-11 h-11 rounded-full shadow-md flex items-center justify-center text-yellow-500 hover:text-yellow-600 hover:bg-yellow-50 active:scale-95 transition bg-white mb-3 relative group">
-    <i class="fas fa-hand-paper text-lg group-hover:animate-wave"></i>
-    <span class="absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-0 group-hover:animate-ping"></span>
-</button>
-
 <style>
 @keyframes wave {
     0% { transform: rotate(0deg); }
@@ -174,54 +177,52 @@
     animation: wave 1s infinite;
 }
 </style>
-    <div class="absolute right-4 top-40 z-40 flex flex-col gap-3 transition-all">
-        
-        <div class="relative group mb-2">
-    <button id="btn-map-layers" class="glass-panel w-11 h-11 rounded-full shadow-md flex items-center justify-center text-gray-600 hover:text-green-600 active:scale-95 transition bg-white">
-        <i class="fas fa-layer-group text-lg"></i>
+    <div class="absolute top-36 right-2 z-40 flex flex-col items-center gap-3 transition-all">
+    
+    <button id="btn-notifications" class="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center text-gray-600 hover:text-green-600 active:scale-95 transition relative border border-gray-100">
+        <i class="fas fa-bell"></i>
+        <div class="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></div>
     </button>
 
-    <div id="map-layers-menu" class="absolute right-14 top-0 w-40 bg-white rounded-xl shadow-xl border border-gray-100 hidden p-2 flex-col gap-1 z-50 origin-top-right transition-all duration-200">
-        
-        <button onclick="setMapStyle('standard')" class="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg text-sm text-gray-700 transition w-full text-left">
-            <div class="w-6 h-6 rounded border border-gray-300 bg-gray-100 overflow-hidden relative">
-                <div class="absolute top-0 left-0 w-full h-1/2 bg-blue-200"></div>
-                <div class="absolute bottom-0 left-0 w-full h-1/2 bg-gray-100"></div>
-            </div>
-            <span>Standard</span>
+    <button id="btn-hail" class="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center text-yellow-500 hover:text-yellow-600 active:scale-95 transition border border-gray-100 group relative">
+        <i class="fas fa-hand-paper text-lg group-hover:animate-wave"></i>
+        <span class="absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-0 group-hover:animate-ping"></span>
+    </button>
+
+    <div class="relative group">
+        <button id="btn-map-layers" class="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center text-gray-600 hover:text-green-600 active:scale-95 transition border border-gray-100">
+            <i class="fas fa-layer-group"></i>
         </button>
 
-        <button onclick="setMapStyle('satellite')" class="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg text-sm text-gray-700 transition w-full text-left">
-            <div class="w-6 h-6 rounded border border-gray-300 bg-green-800 overflow-hidden relative">
-                <i class="fas fa-tree text-[8px] text-green-300 absolute top-1 left-1"></i>
-            </div>
-            <span>Satellite</span>
-        </button>
+        <div id="map-layers-menu" class="absolute right-12 top-0 w-40 bg-white rounded-xl shadow-xl border border-gray-100 hidden p-2 flex-col gap-1 z-50 origin-top-right">
+            <button onclick="setMapStyle('standard')" class="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg text-xs text-gray-700 w-full text-left">
+                <div class="w-4 h-4 rounded bg-blue-200 border border-gray-200"></div>
+                <span>Standard</span>
+            </button>
+            <button onclick="setMapStyle('satellite')" class="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg text-xs text-gray-700 w-full text-left">
+                <div class="w-4 h-4 rounded bg-green-700 border border-gray-200"></div>
+                <span>Satellite</span>
+            </button>
+            <button onclick="setMapStyle('dark')" class="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg text-xs text-gray-700 w-full text-left">
+                <div class="w-4 h-4 rounded bg-gray-800 border border-gray-200"></div>
+                <span>Dark Mode</span>
+            </button>
+        </div>
+    </div>
 
-        <button onclick="setMapStyle('dark')" class="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-lg text-sm text-gray-700 transition w-full text-left">
-            <div class="w-6 h-6 rounded border border-gray-600 bg-gray-800"></div>
-            <span>Dark Mode</span>
+    <a href="{{ route('mobile.nearby') }}" class="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center text-green-600 hover:bg-green-50 active:scale-95 transition border border-gray-100 group">
+        <i class="fas fa-location-crosshairs text-lg group-hover:animate-pulse"></i>
+    </a>
+
+    <div class="flex flex-col bg-white rounded-full shadow-md border border-gray-100 overflow-hidden">
+        <button id="zoom-in" class="w-10 h-10 flex items-center justify-center text-gray-600 hover:text-green-600 active:bg-gray-50 transition border-b border-gray-50">
+            <i class="fas fa-plus"></i>
+        </button>
+        <button id="zoom-out" class="w-10 h-10 flex items-center justify-center text-gray-600 hover:text-green-600 active:bg-gray-50 transition">
+            <i class="fas fa-minus"></i>
         </button>
     </div>
 </div>
-
-        <a href="{{ route('mobile.nearby') }}" class="glass-panel h-11 px-4 rounded-full shadow-md flex items-center justify-center gap-2 text-green-600 hover:bg-green-50 active:scale-95 transition bg-white mb-3 group">
-            <i class="fas fa-location-crosshairs text-lg group-hover:animate-pulse"></i>
-            <span class="text-xs font-bold tracking-wide">Nearby</span>
-        </a>
-
-        <button id="zoom-in" class="glass-panel w-11 h-11 rounded-full shadow-md flex items-center justify-center text-gray-600 hover:text-green-600 active:scale-95 transition bg-white">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-        </button>
-        
-        <button id="zoom-out" class="glass-panel w-11 h-11 rounded-full shadow-md flex items-center justify-center text-gray-600 hover:text-green-600 active:scale-95 transition bg-white">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4" />
-            </svg>
-        </button>
-    </div>
 
     <div id="bus-list-panel" class="fixed inset-x-0 bottom-0 z-[80] bg-gray-50 rounded-t-[30px] shadow-[0_-10px_40px_rgba(0,0,0,0.2)] transform translate-y-full transition-transform duration-300 ease-out flex flex-col h-[80vh]">
     
@@ -230,29 +231,28 @@
     </div>
 
     <div class="px-6 py-4 bg-white border-b border-gray-100">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">All Routes</h2>
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Active Routes</h2>
 
         <div class="relative mb-4">
             <i class="fas fa-search absolute left-4 top-3.5 text-gray-400"></i>
-            <input type="text" placeholder="Search routes" class="w-full bg-gray-100 text-gray-800 rounded-xl py-3 pl-10 pr-4 outline-none focus:ring-2 focus:ring-green-500 transition">
+            <input type="text" id="route-search-input" placeholder="Search routes" class="w-full bg-gray-100 text-gray-800 rounded-xl py-3 pl-10 pr-4 outline-none focus:ring-2 focus:ring-green-500 transition">
         </div>
 
         <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            <button class="px-4 py-2 bg-[#00b894] text-white text-sm font-medium rounded-lg shadow-sm whitespace-nowrap">
-                <i class="fas fa-filter mr-1"></i> All Routes
-            </button>
-            <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm font-medium rounded-lg whitespace-nowrap hover:border-green-500 transition">
-                By Distance
-            </button>
-            <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm font-medium rounded-lg whitespace-nowrap hover:border-green-500 transition">
-                By Stop
-            </button>
+            <button id="filter-all" class="px-4 py-2 bg-[#00b894] text-white text-sm font-medium rounded-lg shadow-sm whitespace-nowrap">
+    All Routes
+</button>
+<button id="filter-distance" class="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm font-medium rounded-lg whitespace-nowrap transition">
+    By Distance
+</button>
+<button id="filter-stops" class="px-4 py-2 bg-white border border-gray-200 text-gray-600 text-sm font-medium rounded-lg whitespace-nowrap transition">
+    By Stop
+</button>
         </div>
     </div>
 
     <div id="bus-list-container" class="flex-grow overflow-y-auto p-4 space-y-3 no-scrollbar">
-        <div class="text-center py-10 text-gray-400">Loading routes...</div>
-    </div>
+        </div>
 </div>
 
 <div id="bus-detail-panel" class="fixed inset-0 z-[90] bg-gray-50 transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col h-full">
@@ -296,108 +296,35 @@
     </div>
 </div>
 
-    <div id="main-trip-card" class="fixed inset-x-0 bottom-0 z-[60] pointer-events-none flex flex-col justify-end h-auto transform translate-y-full transition-transform duration-300 ease-out mobile-frame">
+   <div id="main-trip-card" class="fixed inset-x-4 bottom-28 z-[100] transform translate-y-[200%] pointer-events-none transition-transform duration-300 ease-out">
+    <div class="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
         
-        <div class="sidebar-container">
-            <div class="desktop-only p-6 pb-2 bg-white">
-                <h2 class="text-2xl font-bold text-gray-800">Capiz Operations</h2>
-                <div class="flex items-center gap-2 text-sm text-gray-500 mt-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-green-500">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clip-rule="evenodd" />
-                    </svg>
-                    <p>Last Updated: <span id="desktop-clock" class="font-medium text-gray-700">10:24:30 AM PHST</span></p>
-                </div>
-            </div>
-
-            <div class="pointer-events-auto p-4 md:p-6 md:pt-4 md:flex-grow">
-                <div class="glass-panel bg-white/95 rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.16)]">
-                    
-                    <div id="trip-card-header" class="bg-gradient-to-r from-[#00b06b] to-[#009e60] p-5 text-white cursor-pointer relative overflow-hidden transition-colors duration-300">
-    <div class="relative flex justify-between items-start">
-        <div class="relative flex justify-between items-start">
-    
-    <button id="close-trip-card" class="pointer-events-auto absolute -top-2 -right-2 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/40 transition z-50">
-        <i class="fas fa-times"></i>
-    </button>
-</div>
-        <div class="flex gap-4">
-            <div class="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md shadow-inner">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.129a48.97 48.97 0 00-7.53 0c-.565.08-.987.56-.987 1.13v.958m3.75 0v-1.5a1.5 1.5 0 00-3 0v1.5m0 0h7.5" />
-                </svg>
-            </div>
+        <div id="trip-card-header" class="px-5 py-3 bg-gray-800 flex justify-between items-center transition-colors duration-300">
             <div>
-                <div class="flex items-center gap-2 mb-1">
-                    <span id="card-route-name" class="text-[11px] font-bold bg-green-800/30 px-2 py-0.5 rounded-full uppercase tracking-wider">Express Route</span>
-                    <div class="flex items-center gap-0.5 text-yellow-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.651l-4.752-.381-1.831-4.401z" clip-rule="evenodd" /></svg>
-                        <span class="text-sm font-bold ml-0.5 text-white">4.8</span>
-                    </div>
-                </div>
-                <h3 id="card-bus-number" class="text-xl font-bold leading-tight">Bus 42 - Downtown</h3>
+                <h3 id="card-bus-number" class="text-white font-bold text-lg leading-none">Bus --</h3>
+                <p id="card-route-name" class="text-white/80 text-xs mt-0.5 font-medium">Loading Route...</p>
             </div>
-        </div>
-    </div>
-    <div class="pointer-events-auto p-4 md:p-6 md:pt-4 md:flex-grow">
-    <div class="glass-panel bg-white/95 rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden transition-all hover:shadow-[0_8px_30px_rgb(0,0,0,0.16)]">
-        
-        <div class="p-6 pb-6"> <button id="btn-track-immediate" class="w-full mt-4 bg-gray-900 text-white font-bold py-3 rounded-xl shadow-lg active:scale-95 transition flex items-center justify-center gap-2">
-                <i class="fas fa-crosshairs"></i> Track Bus Live
+            
+            <button id="close-trip-card" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition">
+                <i class="fas fa-times"></i>
             </button>
-            </div>
-    </div>
-</div>
-</div>
+        </div>
 
-<div class="p-6 pb-24">
-    <div class="flex items-start gap-4 mb-6">
-        <div class="flex-shrink-0 relative">
-            <div class="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
+        <div class="p-4 flex items-center justify-between gap-4">
+            
+            <div class="flex flex-col">
+                 <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Capacity</span>
+                 <div id="live-passenger-count" class="text-gray-800 font-bold text-sm mt-0.5">
+                    <i class="fas fa-spinner fa-spin"></i>
+                 </div>
             </div>
-        </div>
-        <div>
-            <p class="text-xs text-gray-500 font-semibold uppercase tracking-wide mb-1">Next Stop</p>
-            <h4 id="card-next-stop" class="text-gray-900 font-bold text-lg leading-tight">Roxas City Plaza</h4>
-            <p class="text-gray-500 text-sm">Arnaldo Blvd</p>
-        </div>
-    </div>
 
-    <div class="flex items-start gap-4 mb-2">
-        <div class="flex-shrink-0">
-            <div class="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </div>
-        </div>
-        <div>
-            <p class="text-xs text-gray-500 font-semibold uppercase tracking-wide mb-1">Estimated Arrival</p>
-            <div class="flex items-baseline gap-1.5">
-                <span id="card-eta-time" class="text-3xl font-black text-gray-900">3</span>
-                <span class="text-gray-600 font-medium">min</span>
-            </div>
+            <button id="btn-track-immediate" class="flex-grow bg-gray-900 text-white text-sm font-bold py-3 px-4 rounded-xl shadow-lg active:scale-95 transition flex items-center justify-center gap-2">
+                <i class="fas fa-crosshairs"></i> Track Live
+            </button>
         </div>
     </div>
 </div>
-
-                    <div class="bg-gray-50 px-6 py-4 border-t border-gray-100">
-                         <div class="flex justify-between text-[11px] text-gray-500 mb-2 font-semibold uppercase tracking-wider">
-                            <span>Route Progress</span>
-                            <span>65%</span>
-                        </div>
-                        <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                            <div class="bg-[#00b06b] h-full rounded-full relative" style="width: 65%"></div>
-                        </div>
-                        <div class="flex justify-between text-[11px] font-medium text-gray-400 mt-2">
-                             <span>Pueblo de Panay</span>
-                             <span>City Proper</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-
-        </div>
-    </div>
 
     <div id="alerts-panel" class="fixed inset-0 z-[100] bg-black/20 backdrop-blur-sm hidden transition-opacity duration-300">
     
@@ -469,7 +396,7 @@
             <path d="M14.894 14.418l-2.205-3.15a.75.75 0 111.229-.858l2.613 3.733a.75.75 0 11-1.23.861l-.407-.586zM13.669 17.866l-2.18-2.18a.75.75 0 111.06-1.06l2.18 2.18a.75.75 0 11-1.06 1.06z" />
             <path d="M21.75 4.5a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zM22.5 12a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zM21.75 19.5a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
         </svg>
-        <span class="text-[10px] font-medium">Buses</span>
+        <span class="text-[10px] font-medium">Routes</span>
     </a>
 
     <a href="{{ route('mobile.profile') }}" class="flex flex-col items-center gap-1.5 text-gray-400 hover:text-green-600 transition group">
@@ -493,6 +420,8 @@
     let routeShapesData = {};   // Stores the path data (hidden)
     let activePolyline = null;  // The currently drawn line
     let activeMarkers = [];     // The Start/End icons
+    let nearbyStopMarker = null;
+    let guideLine = null;
 
     // --- NEW VARIABLES FOR SMART STOPS ---
     let stopLayer = L.layerGroup().addTo(map); // A special invisible layer for dots
@@ -511,9 +440,10 @@
 
     // Close card when X is clicked
     closeCardBtn.addEventListener('click', () => {
-        tripCard.classList.add('translate-y-full'); // Slide down
+        // Bury it deep and disable clicks
+        tripCard.classList.add('translate-y-[200%]', 'pointer-events-none');
+        tripCard.classList.remove('pointer-events-auto');
         
-        // Optional: If you were auto-tracking a bus, stop tracking it
         if (typeof trackedBusId !== 'undefined') {
             trackedBusId = null; 
         }
@@ -588,38 +518,81 @@
     // Call it ONCE when map loads
     loadRouteShapes();
 
-    // --- DRAW ACTIVE ROUTE (Professional Style) ---
-    function showRouteOnMap(busNumber) {
+    // ============================================
+    // 🎨 DRAW ROUTE ON MAP (Defense-Ready Fix)
+    // ============================================
+    window.showRouteOnMap = function(busNumber) { // Added 'window.' to make sure it's global
+        console.log("Attempting to draw route for Bus ID:", busNumber);
+
         // 1. Clear previous line and markers
-        if (activePolyline) map.removeLayer(activePolyline);
-        activeMarkers.forEach(m => map.removeLayer(m));
-        activeMarkers = [];
+        if (typeof activePolyline !== 'undefined' && activePolyline) {
+            map.removeLayer(activePolyline);
+        }
+        if (typeof activeMarkers !== 'undefined') {
+            activeMarkers.forEach(m => map.removeLayer(m));
+            activeMarkers = [];
+        }
 
-        // 2. Map Bus Number to Route Name (Manual Mapping based on your Seeder)
-        let routeName = "";
-        if (busNumber.includes("01")) routeName = "PdP Green Route";
-        else if (busNumber.includes("42")) routeName = "PdP Red Route";
-        else if (busNumber.includes("10")) routeName = "PdP Blue Route";
-        else if (busNumber.includes("UV")) routeName = "RCPUVTC (Pontevedra)";
+        // 2. Determine the Keyword (Defense-Ready Fix)
+        let searchKeyword = "";
 
-        // 3. Find Data
-        const routeData = routeShapesData[routeName];
-        if (!routeData) {
-            console.warn("No route path found for:", routeName);
+        // We check the busNumber, but we ALSO check the route name if available
+        // This ensures that even if the ID is a number, we find the color.
+        let textToSearch = String(busNumber).toLowerCase();
+        
+        // If we can find the route name from the global data, add it to the search
+        if (selectedBusData && selectedBusData.route_name) {
+            textToSearch += " " + selectedBusData.route_name.toLowerCase();
+        }
+
+        if (textToSearch.includes("01") || textToSearch.includes("green")) {
+            searchKeyword = "Green";
+        } 
+        else if (textToSearch.includes("42") || textToSearch.includes("red")) {
+            searchKeyword = "Red";
+        } 
+        else if (textToSearch.includes("10") || textToSearch.includes("blue")) {
+            searchKeyword = "Blue";
+        } 
+        else if (textToSearch.includes("uv") || textToSearch.includes("pontevedra")) {
+            searchKeyword = "Pontevedra";
+        }
+
+        if (!searchKeyword) {
+            // If it still fails, let's default to Green so the app doesn't crash during defense
+            console.warn("⚠️ Unknown Bus ID, defaulting to Green Route for safety.");
+            searchKeyword = "Green"; 
+        }
+
+        console.log("🔍 Looking for route data containing keyword:", searchKeyword);
+
+        // 3. Find the matching data in routeShapesData
+        // We ignore the exact name "PdP Green Route" and just look for "Green"
+        let foundKey = Object.keys(routeShapesData).find(key => 
+            key.toLowerCase().includes(searchKeyword.toLowerCase())
+        );
+
+        if (!foundKey) {
+            console.error(`❌ CRITICAL: No route found matching '${searchKeyword}'. Available routes are:`, Object.keys(routeShapesData));
+            // For the defense, alert the user so you know data is missing
+            alert(`System Error: Route data for ${searchKeyword} is missing.`);
             return;
         }
 
-        // 4. Draw the Professional Line
+        console.log("✅ Found matching route:", foundKey);
+        const routeData = routeShapesData[foundKey];
+
+        // 4. Draw the Line
         activePolyline = L.polyline(routeData.path, {
             color: routeData.color,
             weight: 6,
             opacity: 0.9,
             lineCap: 'round',
             lineJoin: 'round',
-            dashArray: '1, 10', // Dotted effect
+            dashArray: '1, 10', 
         }).addTo(map);
         
-        // Add a solid line underneath for contrast
+        // Background line for contrast
         const bgLine = L.polyline(routeData.path, {
             color: routeData.color,
             weight: 3,
@@ -646,14 +619,14 @@
             iconAnchor: [8, 8]
         });
 
-        const m1 = L.marker(start, {icon: startIcon}).addTo(map).bindPopup("Start: " + routeName);
-        const m2 = L.marker(end, {icon: endIcon}).addTo(map).bindPopup("End: " + routeName);
+        const m1 = L.marker(start, {icon: startIcon}).addTo(map).bindPopup("Start: " + foundKey);
+        const m2 = L.marker(end, {icon: endIcon}).addTo(map).bindPopup("End: " + foundKey);
         
         activeMarkers.push(m1, m2);
 
-        // 6. Zoom map to fit the route perfectly
+        // 6. Zoom map to fit the route
         map.fitBounds(bgLine.getBounds(), { padding: [50, 50] });
-    }
+    };
 
     // --- REPLACED: REAL-TIME BUS TRACKING WITH PASSENGER DATA ---
     async function fetchBusPositions() {
@@ -765,13 +738,20 @@ if (bus.route_name) {
                         popupAnchor: [0, -20]
                     });
 
-                    var newMarker = L.marker([lat, lng], {icon: busIcon})
-                        .addTo(map)
-                        .bindPopup(popupContent);
+                   var newMarker = L.marker([lat, lng], {icon: busIcon})
+                        .addTo(map);
                     
-                    newMarker.on('click', function() {
+                    newMarker.on('click', function(e) {
+                        // CRITICAL FIX: This stops the click from hitting the map behind the bus
+                        L.DomEvent.stopPropagation(e); 
+
+                        // Now run your card update logic
                         if (typeof updateTripCard === 'function') updateTripCard(bus);
-                        if (typeof showRouteOnMap === 'function' && bus.bus_number) showRouteOnMap(bus.bus_number);
+                        
+                        // Draw the line (optional, if you want)
+                        if (typeof showRouteOnMap === 'function' && bus.bus_number) {
+                            showRouteOnMap(bus.bus_number);
+                        }
                     });
 
                     busMarkers[bus.id] = newMarker;
@@ -865,33 +845,73 @@ if (bus.route_name) {
         alert(`${title}\n${message}`); 
     }
 
-    // --- 3. FUNCTION TO UPDATE THE CARD ---
+    // --- 3. FUNCTION TO UPDATE THE CARD (With Dynamic Colors) ---
     function updateTripCard(bus) {
         selectedBusData = bus;
         
+        // 1. Get Real Data
         let passengerCount = bus.passenger_count || 0;
-        let maxCapacity = 40; 
+        let maxCapacity = bus.capacity || bus.max_capacity || 40; 
+        let routeName = bus.route_name || "Active Service";
         
-        document.getElementById('card-bus-number').innerHTML = `
-            ${bus.bus_number} 
-            <span class="text-xs font-normal ml-2 opacity-80 block md:inline">
-            <i class="fas fa-users"></i> ${passengerCount}/${maxCapacity} passengers
-            </span>
-        `;
-        document.getElementById('card-route-name').innerText = bus.status === 'active' ? 'Active Service' : bus.status.toUpperCase();
+        // 2. Update Text Content
+        document.getElementById('card-bus-number').innerText = bus.bus_number;
+        document.getElementById('card-route-name').innerText = routeName;
 
-        const header = document.getElementById('trip-card-header');
-        header.classList.remove('from-gray-500', 'to-gray-600', 'from-[#00b06b]', 'to-[#009e60]', 'from-red-500', 'to-red-600');
-        
-        if (bus.status === 'active') {
-            header.classList.add('from-[#00b06b]', 'to-[#009e60]');
-        } else if (bus.status === 'full') {
-            header.classList.add('from-orange-500', 'to-orange-600');
-        } else {
-            header.classList.add('from-red-500', 'to-red-600');
+        let passengerElement = document.getElementById('live-passenger-count');
+        if (passengerElement) {
+            // Color code the capacity (Red if full, Green if open)
+            let capColor = "text-green-600";
+            if(passengerCount >= maxCapacity) capColor = "text-red-600";
+            else if(passengerCount >= (maxCapacity * 0.8)) capColor = "text-orange-500";
+
+            passengerElement.innerHTML = `<span class="${capColor}">${passengerCount}</span> <span class="text-gray-400">/ ${maxCapacity}</span>`;
         }
 
-        tripCard.classList.remove('translate-y-full'); 
+        // 3. DYNAMIC COLOR LOGIC 🎨
+        const header = document.getElementById('trip-card-header');
+        const actionBtn = document.getElementById('btn-track-immediate');
+        
+        // Reset base classes
+        header.className = "px-5 py-3 flex justify-between items-center transition-colors duration-300";
+        
+        // Detect Color based on Route Name or Bus Number
+        let bgClass = "bg-gray-800"; // Default Dark Gray
+        let btnClass = "bg-gray-900";
+
+        // Convert to lowercase to match safely
+        let searchStr = (bus.bus_number + " " + routeName).toLowerCase();
+
+        if (searchStr.includes('green') || searchStr.includes('01')) {
+            bgClass = "bg-[#00b894]"; // Green
+            btnClass = "bg-[#00b894]";
+        } 
+        else if (searchStr.includes('red') || searchStr.includes('42')) {
+            bgClass = "bg-[#d63031]"; // Red
+            btnClass = "bg-[#d63031]";
+        } 
+        else if (searchStr.includes('blue') || searchStr.includes('10')) {
+            bgClass = "bg-[#0984e3]"; // Blue
+            btnClass = "bg-[#0984e3]";
+        }
+        else if (searchStr.includes('uv') || searchStr.includes('pontevedra')) {
+            bgClass = "bg-[#6c5ce7]"; // Purple
+            btnClass = "bg-[#6c5ce7]";
+        }
+
+        // Apply new colors
+        header.classList.add(...bgClass.split(" ")); // Spread operator to add class safely
+        // Optional: Make the button match the route color too?
+        // actionBtn.className = `flex-grow text-white text-sm font-bold py-3 px-4 rounded-xl shadow-lg active:scale-95 transition flex items-center justify-center gap-2 ${btnClass}`;
+
+        // 4. Show the card (Slide it up)
+        const tripCard = document.getElementById('main-trip-card');
+        
+        // Remove the hiding class
+        tripCard.classList.remove('translate-y-[200%]', 'pointer-events-none');
+        
+        // Add interaction
+        tripCard.classList.add('pointer-events-auto');
     }
 
     // Run immediately, then every 1 second
@@ -1026,73 +1046,85 @@ if (bus.route_name) {
         stopsContainer.innerHTML = html;
     }
 
-    function renderBusList() {
-        fetch('/api/live-locations')
-            .then(res => res.json())
-            .then(data => {
-                busListContainer.innerHTML = ''; 
+    function renderBusList(filter = 'all') {
+    // Ensure we use the working API route
+    fetch('/api/bus-locations')
+        .then(res => res.json())
+        .then(data => {
+            
+            // --- 1. SORTING LOGIC ---
+            if (filter === 'stops') {
+                // Sort Alphabetically by Route Name (A-Z)
+                data.sort((a, b) => (a.route_name || "").localeCompare(b.route_name || ""));
+            } else if (filter === 'distance') {
+                // Sort by ID as a temporary proxy for distance
+                data.sort((a, b) => a.id - b.id);
+            }
 
-                data.forEach(bus => {
-                    const isReal = bus.bus_number.includes("REAL");
-                    let routeNum = bus.bus_number.match(/\d+/) ? bus.bus_number.match(/\d+/)[0] : '?';
-                    let displayName = bus.bus_number.replace('(REAL)', '').replace('(GHOST)', '').trim();
-                    if(routeNum === '42') displayName = "Downtown Express";
-                    if(routeNum === '10') displayName = "North Loop";
-                    if(routeNum === '01') displayName = "Airport Express";
+            busListContainer.innerHTML = ''; 
 
-                    let statusText = "On Time";
-                    let statusColor = "bg-green-100 text-green-700";
+            data.forEach(bus => {
+                // 1. SMART IDENTIFIER (Fixes the "?" and overflowing numbers)
+                let rawMatch = bus.bus_number.match(/\d+/);
+                let displayIdentifier = rawMatch ? rawMatch[0] : bus.bus_number.charAt(0).toUpperCase();
+                let iconContent = displayIdentifier.length > 3 
+                    ? '<i class="fas fa-bus text-sm"></i>' 
+                    : displayIdentifier;
 
-                    let load = bus.current_load || 0;
-                    let max = bus.max_capacity || 40;
-                    let percent = Math.round((load / max) * 100);
-                    
-                    let capacityColor = "bg-green-100 text-green-700";
-                    
-                    if(percent > 50) { capacityColor = "bg-yellow-100 text-yellow-700"; }
-                    if(percent >= 90) { capacityColor = "bg-red-100 text-red-700"; }
+                let displayName = bus.bus_number.replace('(REAL)', '').replace('(GHOST)', '').trim();
 
-                    if(!isReal) {
-                        if(routeNum === '10') { statusText = "Delayed"; statusColor = "bg-orange-100 text-orange-700"; }
-                    }
+                // 2. DYNAMIC CAPACITY & COLOR CALCULATION (Fixes the ReferenceError)
+                let load = bus.passenger_count || 0;
+                let max = bus.capacity || 20; 
+                let percent = Math.round((load / max) * 100);
+                
+                // Initialize the variable here so the template can see it
+                let capacityColor = "bg-green-100 text-green-700"; 
+                if(percent > 50) capacityColor = "bg-yellow-100 text-yellow-700";
+                if(percent >= 90) capacityColor = "bg-red-100 text-red-700";
 
-                    const item = document.createElement('div');
-                    item.className = "bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between cursor-pointer hover:shadow-md transition";
-                    
-                    item.innerHTML = `
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-[#00b894] text-white flex items-center justify-center font-bold text-lg shadow-sm">
-                                ${routeNum}
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-gray-800 text-[15px]">${displayName}</h4>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide border border-gray-100 ${statusColor}">
-                                        ${statusText}
-                                    </span>
-                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide border border-gray-100 ${capacityColor}">
-                                        <i class="fas fa-users mr-1"></i> ${percent}%
-                                    </span>
-                                </div>
+                // 3. BOX COLOR BASED ON ROUTE NAME
+                let boxColor = "#00b894"; // Default Green
+                if (displayName.toLowerCase().includes('red')) boxColor = "#eb4d4b";
+                if (displayName.toLowerCase().includes('blue')) boxColor = "#0984e3";
+
+                const item = document.createElement('div');
+                item.className = "bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between cursor-pointer hover:shadow-md transition mb-3";
+                
+                item.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 flex-shrink-0 rounded-xl text-white flex items-center justify-center font-bold text-base shadow-sm overflow-hidden" 
+                             style="background-color: ${boxColor}">
+                            ${iconContent}
+                        </div>
+                        <div class="min-w-0">
+                            <h4 class="font-bold text-gray-800 text-[15px] truncate">${displayName}</h4>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide border border-gray-100 bg-green-100 text-green-700">
+                                    Active
+                                </span>
+                                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide border border-gray-100 ${capacityColor}">
+                                    <i class="fas fa-users mr-1"></i> ${percent}%
+                                </span>
                             </div>
                         </div>
-                        <div class="text-gray-300">
-                            <i class="fas fa-chevron-right"></i>
-                        </div>
-                    `;
+                    </div>
+                    <div class="text-gray-300 ml-2">
+                        <i class="fas fa-chevron-right text-xs"></i>
+                    </div>
+                `;
 
-                    item.addEventListener('click', () => {
-                        selectedBusData = bus; 
-                        document.getElementById('detail-title').innerText = displayName + " Details"; 
-                        generateStops(bus.bus_number); 
-                        detailPanel.classList.remove('translate-x-full'); 
-                        updateHeartButton(bus.id);
-                    });
-
-                    busListContainer.appendChild(item);
+                item.addEventListener('click', () => {
+                    selectedBusData = bus; 
+                    document.getElementById('detail-title').innerText = displayName + " Details"; 
+                    if (typeof generateStops === 'function') generateStops(bus.bus_number); 
+                    detailPanel.classList.remove('translate-x-full'); 
                 });
+
+                busListContainer.appendChild(item);
             });
-    }
+        });
+}
 
     // --- 6. REAL NOTIFICATION SYSTEM (With Dismissal) ---
     const btnNotifications = document.getElementById('btn-notifications');
@@ -1276,8 +1308,22 @@ if (bus.route_name) {
             activeMarkers = [];
         }
 
+        if (nearbyStopMarker) {
+            map.removeLayer(nearbyStopMarker);
+            nearbyStopMarker = null;
+        }
+
+        if (guideLine) {
+            map.removeLayer(guideLine);
+            guideLine = null;
+        }
+
         const tripCard = document.getElementById('main-trip-card');
-        if (tripCard) tripCard.classList.add('translate-y-full');
+        if (tripCard) {
+            // FIX: Use the same classes as the button
+            tripCard.classList.add('translate-y-[200%]', 'pointer-events-none');
+            tripCard.classList.remove('pointer-events-auto');
+        }
 
         const busListPanel = document.getElementById('bus-list-panel');
         if (busListPanel) busListPanel.classList.add('translate-y-full');
@@ -1323,6 +1369,406 @@ if (bus.route_name) {
         document.getElementById('map-layers-menu').classList.add('hidden');
     });
 
+    // ========================================================
+    // 🚀 MASTER FUNCTION: SMART ROUTE GUIDE
+    // ========================================================
+    window.focusOnLocation = function(lat, lng, name = "Destination", routeName = null) {
+        
+        // 1. Close Search Overlay
+        const searchOverlay = document.getElementById('search-overlay');
+        searchOverlay.classList.add('hidden');
+        searchOverlay.classList.remove('flex');
+
+        // 2. Fly to the destination (Zoom level 16 is good context)
+        map.flyTo([lat, lng], 16, { animate: true, duration: 1.5 });
+
+        // 3. Remove old markers/lines
+        if (nearbyStopMarker) map.removeLayer(nearbyStopMarker);
+        if (guideLine) map.removeLayer(guideLine);
+
+        // 4. Determine Bus Details
+        let busColor = "gray";
+        let rideMsg = "Bus Stop";
+        let routeClass = "bg-gray-600";
+        let busNumberForLogic = null; // We need this to trigger the line drawing
+        
+        // Map Route Names to IDs/Colors
+        if (routeName) {
+            if (routeName.includes('Red')) { 
+                busColor = "#ef4444"; 
+                rideMsg = "Ride the <b>Red Route</b>"; 
+                routeClass = "bg-red-500";
+                busNumberForLogic = "42"; // ID for Red
+            }
+            else if (routeName.includes('Green')) { 
+                busColor = "#00b894"; 
+                rideMsg = "Ride the <b>Green Route</b>"; 
+                routeClass = "bg-[#00b894]";
+                busNumberForLogic = "01"; // ID for Green
+            }
+            else if (routeName.includes('Blue')) { 
+                busColor = "#0984e3"; 
+                rideMsg = "Ride the <b>Blue Route</b>"; 
+                routeClass = "bg-blue-500";
+                busNumberForLogic = "10"; // ID for Blue
+            }
+        }
+
+        // 5. Create Pulse Icon
+        const pulseIcon = L.divIcon({
+            className: '',
+            html: `<div class="pin-pulse" style="background:${busColor}; border-color:white; width: 24px; height: 24px;"></div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+
+        // 6. Add Marker
+        nearbyStopMarker = L.marker([lat, lng], { icon: pulseIcon })
+            .addTo(map)
+            .bindPopup(`
+                <div class="text-center p-3 min-w-[180px]">
+                    <div class="text-[10px] uppercase font-bold text-gray-400 mb-1">Destination</div>
+                    <div class="font-black text-gray-800 text-lg leading-tight mb-3">${name}</div>
+                    
+                    ${routeName ? `
+                    <div class="mb-3 p-2 rounded-xl bg-gray-50 border border-gray-100 shadow-inner">
+                        <div class="text-xs text-gray-500 mb-1 font-semibold">Suggested Route:</div>
+                        <div class="text-white text-xs font-bold py-1.5 px-3 rounded-lg ${routeClass} shadow-md inline-block">
+                            ${rideMsg}
+                        </div>
+                    </div>
+                    
+                    <button onclick="visualizeRoute('${busNumberForLogic}')" 
+                        class="w-full bg-gray-900 text-white text-xs font-bold py-3 px-4 rounded-xl shadow-lg active:scale-95 transition flex items-center justify-center gap-2 hover:bg-gray-800">
+                        <i class="fas fa-map-marked-alt"></i> View Route & Buses
+                    </button>
+                    ` : `
+                    <div class="text-xs text-gray-400 italic">No specific route data available.</div>
+                    `}
+                </div>
+            `)
+            .openPopup();
+    };
+
+    // ============================================
+    // 👁️ NEW: VISUALIZE ROUTE ACTION
+    // ============================================
+    window.visualizeRoute = function(busNumber) {
+        
+        if (!busNumber) {
+            alert("Route data not found for this stop.");
+            return;
+        }
+
+        // 1. Draw the Route Line (Using your existing function!)
+        if (typeof showRouteOnMap === 'function') {
+            showRouteOnMap(busNumber);
+        }
+
+        // 2. Close the popup so they can see the map
+        map.closePopup();
+
+        // 3. Give feedback
+        // You can add a simple toast or console log here
+        console.log("Visualizing route for bus: " + busNumber);
+
+        // 4. Optional: Zoom out slightly to show the path context
+        // We delay slightly to let the showRouteOnMap function finish its bounds fitting
+        setTimeout(() => {
+            map.zoomOut(1); 
+        }, 800);
+    };
+
+    // ============================================
+    // 🔌 RECEIVER: Check URL for Nearby Redirects
+    // ============================================
+    const urlParams = new URLSearchParams(window.location.search);
+    const fLat = urlParams.get('focusLat');
+    const fLng = urlParams.get('focusLng');
+
+    if (fLat && fLng) {
+        // Wait 500ms for map to load, then use Master Function
+        setTimeout(() => {
+            focusOnLocation(parseFloat(fLat), parseFloat(fLng), "Nearby Stop");
+            // Clean URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }, 500);
+    }
+
+// ============================================
+    // 🔍 LIVE SEARCH LOGIC
+    // ============================================
+    const searchInputRef = document.getElementById('search-input');
+    const liveContainer = document.getElementById('live-search-container');
+    const defaultContent = document.getElementById('default-search-content');
+
+    searchInputRef.addEventListener('input', function(e) {
+        const query = e.target.value.toLowerCase().trim();
+
+        // A. If search is empty, show default suggestions
+        if (query.length < 2) {
+            liveContainer.classList.add('hidden');
+            defaultContent.style.display = 'block';
+            return;
+        }
+
+        // B. Filter the data (allStopsData is already loaded from your existing fetch!)
+        // We filter by Name OR Route Name
+        const matches = allStopsData.filter(stop => 
+            (stop.name && stop.name.toLowerCase().includes(query)) ||
+            (stop.route_name && stop.route_name.toLowerCase().includes(query))
+        );
+
+        // C. Render Results
+        renderSearchResults(matches);
+    });
+
+    function renderSearchResults(results) {
+        defaultContent.style.display = 'none';
+        liveContainer.classList.remove('hidden');
+        liveContainer.innerHTML = '';
+
+        if (results.length === 0) {
+            liveContainer.innerHTML = `<div class="text-center py-8 text-gray-400">No stops found.</div>`;
+            return;
+        }
+
+        results.forEach(stop => {
+            const el = document.createElement('div');
+            el.className = "bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3 active:bg-gray-50 transition cursor-pointer group";
+            
+            // Detect Bus Color
+            let badge = `<span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-bold">Bus Stop</span>`;
+            
+            if(stop.route_name) {
+                if(stop.route_name.includes('Red')) badge = `<span class="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded font-bold"><i class="fas fa-bus"></i> Take Red Bus</span>`;
+                if(stop.route_name.includes('Green')) badge = `<span class="text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded font-bold"><i class="fas fa-bus"></i> Take Green Bus</span>`;
+                if(stop.route_name.includes('Blue')) badge = `<span class="text-[10px] bg-blue-100 text-blue-600 px-2 py-0.5 rounded font-bold"><i class="fas fa-bus"></i> Take Blue Bus</span>`;
+            }
+
+            el.innerHTML = `
+                <div class="w-10 h-10 rounded-full bg-gray-50 text-gray-400 flex items-center justify-center flex-shrink-0 group-hover:bg-green-50 group-hover:text-green-600 transition">
+                    <i class="fas fa-map-marker-alt"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-gray-800 text-sm">${stop.name}</h4>
+                    <div class="mt-1">${badge}</div>
+                </div>
+                <div class="ml-auto text-gray-300">
+                    <i class="fas fa-chevron-right text-xs"></i>
+                </div>
+            `;
+
+            // Pass the route_name to the master function
+            el.addEventListener('click', () => {
+                focusOnLocation(parseFloat(stop.lat), parseFloat(stop.lng), stop.name, stop.route_name);
+            });
+
+            liveContainer.appendChild(el);
+        });
+    }
+    // ============================================
+    // 🔗 ROBUST DEEP LINK LISTENER (With Force Zoom Fix)
+    // ============================================
+    const plannerParams = new URLSearchParams(window.location.search);
+    const routeParam = plannerParams.get('show_route');
+
+    if (routeParam) {
+        console.log("🚀 Trip Planner requested Route ID:", routeParam);
+
+        // 1. Define what we are looking for
+        let routeNameFragment = "";
+        let busKeyword = "";
+
+        // Check your Database IDs here.
+        if (routeParam == "1") { routeNameFragment = "Green"; busKeyword = "Bus 01"; }
+        else if (routeParam == "2" || routeParam == "14") { routeNameFragment = "Red"; busKeyword = "Bus 42"; }
+        else if (routeParam == "3") { routeNameFragment = "Blue"; busKeyword = "Bus 10"; }
+        else if (routeParam == "4") { routeNameFragment = "UV"; busKeyword = "UV Express"; }
+
+        let attempts = 0;
+        const checkDataInterval = setInterval(() => {
+            attempts++;
+            
+            // 2. Check if the route shapes are loaded from the API
+            if (typeof routeShapesData !== 'undefined' && Object.keys(routeShapesData).length > 0) {
+                
+                clearInterval(checkDataInterval); 
+                console.log("✅ API Data Loaded.");
+
+                // 3. Find the matching Route Name in the data
+                // This looks for "PdP Green Route" if the fragment is "Green"
+                const dataKey = Object.keys(routeShapesData).find(k => 
+                    k.toLowerCase().includes(routeNameFragment.toLowerCase())
+                );
+
+                if (dataKey) {
+                    console.log("🎯 Match Found:", dataKey);
+                    
+                    // A. Draw the line (Standard function)
+                    if (typeof showRouteOnMap === 'function') {
+                        showRouteOnMap(busKeyword);
+                    }
+
+                    // B. FORCE ZOOM (The Critical Fix)
+                    const pathData = routeShapesData[dataKey].path;
+                    
+                    if(pathData && pathData.length > 0) {
+                        console.log("🗺️ Calculating bounds for force zoom...");
+                        
+                        // 1. Wake up the map
+                        map.invalidateSize();
+
+                        // 2. Calculate the box around the route manually
+                        const bounds = L.latLngBounds(pathData);
+                        
+                        // 3. Zoom with a slight delay to ensure map is ready
+                        setTimeout(() => {
+                            map.fitBounds(bounds, { 
+                                padding: [50, 50],
+                                maxZoom: 15,
+                                animate: true,
+                                duration: 1.0
+                            });
+                            console.log("✨ Zoom executed.");
+                        }, 500); 
+                    }
+                } else {
+                    console.error("❌ ERROR: Could not find route data for:", routeNameFragment);
+                }
+
+                // 4. Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            
+            } else if (attempts > 20) {
+                clearInterval(checkDataInterval);
+                console.error("❌ Timed out waiting for route data.");
+            }
+        }, 500); 
+    }
+
+    document.getElementById('route-search-input').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const items = document.querySelectorAll('#bus-list-container > div');
+    
+    items.forEach(item => {
+        const routeName = item.querySelector('h4').innerText.toLowerCase();
+        const routeNum = item.querySelector('.w-12').innerText.toLowerCase();
+        
+        if (routeName.includes(searchTerm) || routeNum.includes(searchTerm)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+});
+
+// Filter by Distance (Requires bus.distance_km in your API)
+document.getElementById('filter-distance').addEventListener('click', function() {
+    renderBusList('distance'); // We update the render function below
+});
+
+// Filter by Stop (Alphabetical)
+document.getElementById('filter-stops').addEventListener('click', function() {
+    renderBusList('stops');
+});
+// Wrap in a function to ensure HTML is loaded first
+window.addEventListener('load', function() {
+    const btnAll = document.getElementById('filter-all');
+    const btnDist = document.getElementById('filter-distance');
+    const btnStop = document.getElementById('filter-stops');
+
+    // Only add the listener if the button is actually found (not null)
+    if (btnAll) {
+        btnAll.addEventListener('click', function() { renderBusList('all'); });
+    }
+    if (btnDist) {
+        btnDist.addEventListener('click', function() { renderBusList('distance'); });
+    }
+    if (btnStop) {
+        btnStop.addEventListener('click', function() { renderBusList('stops'); });
+    }
+});
+
+// Ensure these run after the HTML is ready
+document.addEventListener('DOMContentLoaded', function() {
+    const btnAll = document.getElementById('filter-all');
+    const btnDist = document.getElementById('filter-distance');
+    const btnStop = document.getElementById('filter-stops');
+
+    if (btnAll) btnAll.addEventListener('click', () => renderBusList('all'));
+    if (btnDist) btnDist.addEventListener('click', () => renderBusList('distance'));
+    if (btnStop) btnStop.addEventListener('click', () => renderBusList('stops'));
+});
+
+// Function to handle the button colors
+function setActiveFilter(activeId) {
+    const buttons = {
+        'all': document.getElementById('filter-all'),
+        'distance': document.getElementById('filter-distance'),
+        'stops': document.getElementById('filter-stops')
+    };
+
+    // Loop through all buttons to reset them to "Inactive" style
+    Object.values(buttons).forEach(btn => {
+        if (!btn) return;
+        btn.classList.remove('bg-[#00b894]', 'text-white', 'shadow-sm');
+        btn.classList.add('bg-white', 'text-gray-600', 'border', 'border-gray-200');
+    });
+
+    // Apply "Active" style to the clicked button
+    const activeBtn = buttons[activeId];
+    if (activeBtn) {
+        activeBtn.classList.remove('bg-white', 'text-gray-600', 'border', 'border-gray-200');
+        activeBtn.classList.add('bg-[#00b894]', 'text-white', 'shadow-sm');
+    }
+}
+
+// Update your listeners to use this function
+document.getElementById('filter-all').addEventListener('click', () => {
+    setActiveFilter('all');
+    renderBusList('all');
+});
+
+document.getElementById('filter-distance').addEventListener('click', () => {
+    setActiveFilter('distance');
+    renderBusList('distance');
+});
+
+document.getElementById('filter-stops').addEventListener('click', () => {
+    setActiveFilter('stops');
+    renderBusList('stops');
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Parse to numbers immediately
+    const focusLat = parseFloat(urlParams.get('focusLat'));
+    const focusLng = parseFloat(urlParams.get('focusLng'));
+
+    // SAFETY CHECK: Ensure coordinates are valid numbers and NOT "0" or "NaN"
+    if (!isNaN(focusLat) && !isNaN(focusLng) && focusLat !== 0 && focusLng !== 0) {
+        
+        console.log("Flying to:", focusLat, focusLng); // Debug log
+
+        // Use a timeout to ensure map is ready
+        setTimeout(() => {
+            if(window.map) {
+                map.flyTo([focusLat, focusLng], 16, { animate: true, duration: 1.5 });
+
+                L.circleMarker([focusLat, focusLng], {
+                    radius: 8,
+                    color: '#0A5C36',
+                    fillColor: '#0A5C36',
+                    fillOpacity: 0.8
+                }).addTo(map).bindPopup("Destination").openPopup();
+            }
+        }, 800);
+    } 
+
+    // ... (Your Blue Line drawing code goes here) ...
+});
 </script>
 </body>
 </html>

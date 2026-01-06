@@ -55,10 +55,9 @@
                     <div class="w-12 h-12 rounded-xl bg-[#00b894] text-white flex items-center justify-center font-bold text-lg shadow-sm">
                         42
                     </div>
-                    <div>
-                        <h4 class="font-bold text-gray-800">Downtown Express</h4>
-                        <p class="text-xs text-green-600 font-bold"><i class="fas fa-wifi mr-1"></i> Arriving in 2 min</p>
-                    </div>
+                    <div id="results-container" class="mt-4">
+    <p class="text-center text-gray-400">Click "Find Routes" to see available buses.</p>
+</div>
                 </div>
                 <div class="text-right">
                     <p class="text-lg font-black text-gray-800">15 <span class="text-xs font-medium text-gray-400">min</span></p>
@@ -85,10 +84,9 @@
                     <div class="w-12 h-12 rounded-xl bg-blue-500 text-white flex items-center justify-center font-bold text-lg shadow-sm">
                         18
                     </div>
-                    <div>
-                        <h4 class="font-bold text-gray-800">North Loop</h4>
-                        <p class="text-xs text-gray-400">Departs in 15 min</p>
-                    </div>
+                    <div id="results-container" class="mt-4">
+    <p class="text-center text-gray-400">Click "Find Routes" to see available buses.</p>
+</div>
                 </div>
                 <div class="text-right">
                     <p class="text-lg font-bold text-gray-800">35 <span class="text-xs font-medium text-gray-400">min</span></p>
@@ -100,20 +98,93 @@
     </div>
 
     <div class="p-6 bg-white border-t border-gray-100">
-        <button class="w-full bg-gray-800 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-black transition flex items-center justify-center gap-2">
+        <button id="btn-find-routes" class="w-full bg-gray-800 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-black transition flex items-center justify-center gap-2">
             <i class="fas fa-search-location"></i> Find Routes
         </button>
     </div>
 
     <script>
-        // Simple Interaction Script
-        const inputTo = document.getElementById('input-to');
-        const results = document.getElementById('results-container');
-        const emptyState = document.getElementById('empty-state');
+document.addEventListener('DOMContentLoaded', function() {
+    
+    const findBtn = document.getElementById('btn-find-routes');
+    // NOTE: In your HTML, you used id="results-container" multiple times. 
+    // This script grabs the FIRST one (the main wrapper), which is what we want.
+    const resultsDiv = document.getElementById('results-container');
 
-        // Focus Logic
-        inputTo.focus();
-    </script>
+    findBtn.addEventListener('click', function() {
+        // 1. Show loading state
+        findBtn.innerText = "Searching...";
+        findBtn.disabled = true;
+        resultsDiv.innerHTML = '<p class="text-center text-gray-500 py-10">Looking for buses...</p>';
 
+        // 2. DEFENSE COORDINATES (Hardcoded for the Demo)
+        const startLat = 11.55985; 
+        const startLng = 122.75145;
+        const destLat = 11.57760; 
+        const destLng = 122.75660;
+
+        // 3. Call your API
+        fetch(`/api/plan-trip?start_lat=${startLat}&start_lng=${startLng}&dest_lat=${destLat}&dest_lng=${destLng}`)
+            .then(response => response.json())
+            .then(data => {
+                findBtn.innerText = "Find Routes";
+                findBtn.disabled = false;
+
+                if (data.success) {
+                    let html = '';
+                    
+                    data.data.forEach(route => {
+                        // --- FIX: I ADDED THE CONTENT BACK INSIDE THE CARD ---
+                        html += `
+                        <div onclick="window.location.href='{{ route('mobile.dashboard') }}?show_route=${route.route_id}'"
+                             class="bg-white p-5 rounded-2xl shadow-sm mb-4 border-l-4 hover:bg-gray-50 transition cursor-pointer relative overflow-hidden group" 
+                             style="border-left-color: ${route.color};">
+                             
+                            <div class="flex justify-between items-start">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-12 h-12 rounded-xl text-white flex items-center justify-center font-bold text-lg shadow-sm" style="background-color: ${route.color}">
+                                        ${route.route_id}
+                                    </div>
+                                    
+                                    <div>
+                                        <h4 class="font-bold text-gray-800 text-lg leading-tight">${route.name}</h4>
+                                        <p class="text-xs text-gray-500 mt-0.5">From: ${route.start_stop}</p>
+                                        <p class="text-xs text-gray-500">To: ${route.end_stop}</p>
+                                    </div>
+                                </div>
+
+                                <div class="text-right">
+                                    <div class="text-xl font-black text-gray-800">
+                                        <span class="text-xs font-medium text-gray-400 align-top">₱</span>${route.price}
+                                    </div>
+                                    <div class="text-sm text-green-600 font-bold">${route.eta}</div>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+                                <span class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Recommended</span>
+                                <span class="text-xs text-blue-500 font-bold flex items-center group-hover:underline">
+                                    View on Map <i class="fas fa-chevron-right ml-1 text-[10px]"></i>
+                                </span>
+                            </div>
+                        </div>
+                        `;
+                    });
+
+                    resultsDiv.innerHTML = html;
+                } else {
+                    resultsDiv.innerHTML = `<p class="text-center text-red-500 py-10">${data.message}</p>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                findBtn.innerText = "Find Routes";
+                findBtn.disabled = false;
+                resultsDiv.innerHTML = '<p class="text-center text-red-500 py-10">System Error. Check console.</p>';
+            });
+    });
+});
+</script>
 </body>
 </html>
+

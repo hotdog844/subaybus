@@ -50,6 +50,9 @@ Route::get('/', function () {
 });
 
 // Authentication
+// --- Public Driver Registration ---
+Route::get('/driver/register', [AdminDriverController::class, 'create'])->name('public.driver.register');
+Route::post('/driver/register', [AdminDriverController::class, 'store'])->name('public.driver.store');
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
@@ -105,7 +108,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('routes/{route_id}/stops', [StopController::class, 'index'])->name('routes.stops.index');
     Route::post('routes/{route_id}/stops', [StopController::class, 'store'])->name('routes.stops.store');
     Route::delete('stops/{stop_id}', [StopController::class, 'destroy'])->name('routes.stops.destroy');
+    // ADD THIS LINE BELOW:
+    Route::patch('/drivers/{driver}/verify', [AdminDriverController::class, 'verify'])->name('drivers.verify');
 });
+
 
 
 /*
@@ -216,6 +222,7 @@ Route::get('/api/bus-locations', function () {
             'buses.lat', 
             'buses.lng', 
             'buses.passenger_count', 
+            'buses.capacity',
             'buses.status', 
             'buses.updated_at',
             'routes.name as route_name',
@@ -316,3 +323,17 @@ Route::get('/profile', function() {
 Route::get('/dashboard', function () {
     return redirect()->route('admin.dashboard');
 })->name('dashboard');
+
+Route::get('/force-logout', function () {
+    Auth::logout();
+    Session::flush();
+    return redirect('/login');
+});
+
+Route::get('/mobile/nearby', [App\Http\Controllers\MobileController::class, 'nearby'])->name('mobile.nearby');
+
+// In routes/web.php
+Route::get('/api/stops/{id}/route', function($id) {
+    $stop = \App\Models\BusStop::with('route')->find($id);
+    return response()->json($stop->route);
+});
