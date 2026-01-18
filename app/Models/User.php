@@ -29,6 +29,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'id_image_path',
         'is_verified',
         'profile_photo_path',
+        'wallet_balance',
+        'is_id_verified',
     ];
 
     /**
@@ -64,6 +66,18 @@ class User extends Authenticatable implements MustVerifyEmail
     public function favoriteRoutes()
 {
     return $this->belongsToMany(Route::class, 'favorite_routes');
+}
+
+// Relationship: A user has one Beep Card
+public function card()
+{
+    return $this->hasOne(Card::class);
+}
+
+// Relationship: A user has many Transactions
+public function transactions()
+{
+    return $this->hasMany(Transaction::class)->latest();
 }
 
 }

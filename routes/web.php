@@ -31,6 +31,7 @@ use App\Http\Controllers\Admin\FareController as AdminFareController;
 use App\Http\Controllers\Admin\StopController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\AlertController; // Added
+use App\Http\Controllers\Admin\CardManagerController;
 
 // --- 3. Import Mobile/Passenger Controllers ---
 use App\Http\Controllers\MobileController;
@@ -110,6 +111,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::delete('stops/{stop_id}', [StopController::class, 'destroy'])->name('routes.stops.destroy');
     // ADD THIS LINE BELOW:
     Route::patch('/drivers/{driver}/verify', [AdminDriverController::class, 'verify'])->name('drivers.verify');
+
+    Route::prefix('cards')->name('cards.')->group(function () {
+        Route::get('/', [CardManagerController::class, 'index'])->name('index');       // Becomes 'admin.cards.index'
+        Route::post('/{id}/topup', [CardManagerController::class, 'topUp'])->name('topup');
+        Route::post('/{id}/assign', [CardManagerController::class, 'assignCard'])->name('assign');
+    });
 });
 
 
@@ -336,4 +343,8 @@ Route::get('/mobile/nearby', [App\Http\Controllers\MobileController::class, 'nea
 Route::get('/api/stops/{id}/route', function($id) {
     $stop = \App\Models\BusStop::with('route')->find($id);
     return response()->json($stop->route);
+});
+
+Route::get('/test-ocr', function () {
+    return view('ocr_test');
 });

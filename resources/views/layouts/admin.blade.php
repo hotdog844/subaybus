@@ -159,6 +159,12 @@
                 <a href="{{ route('admin.fares.index') }}" class="{{ request()->routeIs('admin.fares.*') ? 'active' : '' }}">
                     <i class="fas fa-calculator icon"></i> Fare Matrix
                 </a>
+                <a href="{{ route('admin.cards.index') }}" class="flex items-center px-6 py-2.5 text-gray-100 hover:bg-gray-700 hover:text-white group {{ request()->routeIs('admin.cards.*') ? 'bg-gray-700' : '' }}">
+    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+    </svg>
+    <span class="font-medium">Beep Cards</span>
+</a>
                 <a href="{{ route('admin.reports.index') }}" class="{{ request()->routeIs('admin.reports.*') ? 'active' : '' }}">
                     <i class="fas fa-chart-line icon"></i> Reports
                 </a>

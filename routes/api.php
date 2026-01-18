@@ -5,6 +5,9 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\BusLocationController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\TripPlannerController;
+use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\RfidController;
+use App\Http\Controllers\OCRController;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,3 +30,10 @@ Route::post('/gps/update', [BusLocationController::class, 'update']);
 Route::get('/favorites/ids', [FavoriteController::class, 'ids']);
 
 Route::get('/plan-trip', [TripPlannerController::class, 'plan']);
+
+// The Hardware will hit this URL: http://your-ip-address/api/pay
+Route::post('/pay', [PaymentController::class, 'tapCard']);
+
+Route::post('/tap-card', [RfidController::class, 'tapCard']);
+
+Route::post('/verify-id', [OCRController::class, 'verifyStudentId']);
