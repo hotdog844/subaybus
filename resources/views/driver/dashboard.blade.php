@@ -54,8 +54,8 @@
         <div class="text-right">
             <div id="live-clock" class="text-2xl font-bold hud-font text-white">00:00</div>
             <button onclick="endShift()" class="text-[10px] bg-red-900/50 text-red-400 px-2 py-1 rounded border border-red-500/30 hover:bg-red-600 hover:text-white transition mt-1">
-    END SHIFT
-</button>
+                END SHIFT
+            </button>
         </div>
     </div>
 
@@ -148,11 +148,13 @@
     <script>
         // --- 1. CONFIG ---
         const FARE_PRICE = 15; 
-        // ✅ NEW: We use ID for matching (Safe), but keep Name for display
         const assignedRouteId = {{ $bus->route_id ?? 'null' }};
         const assignedRouteName = "{{ $routeName }}";
         const busId = {{ $bus->id }};
         
+        // ✅ GLOBAL STORE FOR STOPS (Needed for Next Stop Logic)
+        let routeStopsList = []; 
+
         // --- 2. MAP SETUP ---
         var map = L.map('driver-map', { zoomControl: false }).setView([11.5853, 122.7511], 14);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '' }).addTo(map);
@@ -168,57 +170,134 @@
             map.setView([11.5853, 122.7511], 14);
         }
 
-        // --- 3. DRAW ROUTE LINES (UPDATED: MATCH BY ID) ---
+        // --- 3. DRAW ROUTE LINES & STOPS (With Data Capture) ---
         function loadAssignedRoute() {
-            if(!assignedRouteId) {
-                console.warn("⚠️ No Route ID assigned to this bus.");
-                return;
-            }
+            if(!assignedRouteId) return;
 
-            console.log("🔍 Looking for Route ID:", assignedRouteId);
+            console.log("🔍 Driver Map: Loading Route ID", assignedRouteId);
 
-            fetch('/api/routes/shapes')
+            fetch('/api/routes') 
                 .then(res => res.json())
                 .then(routes => {
-                    // ✅ FIX: Match by ID instead of Name (Much safer!)
                     const myRoute = routes.find(r => r.id === assignedRouteId);
                     
                     if (myRoute) {
                         console.log("✅ Route Found:", myRoute.name);
-                        
-                        if(myRoute.path_data) {
-                            console.log("✅ Path Data exists. Drawing line...");
-                            const path = JSON.parse(myRoute.path_data);
-                            
-                            // Blue Glow
-                            L.polyline(path, { color: '#3498db', weight: 10, opacity: 0.3 }).addTo(map);
-                            // Main Line
-                            const line = L.polyline(path, { color: '#2980b9', weight: 5, opacity: 0.9 }).addTo(map);
-                            
-                            // Start/End Markers
-                            if(path.length > 0) {
-                                L.circleMarker(path[0], { radius: 8, color: 'green', fillOpacity: 1 }).addTo(map).bindPopup("Start");
-                                L.circleMarker(path[path.length-1], { radius: 8, color: 'red', fillOpacity: 1 }).addTo(map).bindPopup("End");
-                            }
 
+                        // A. DRAW LINE
+                        const routeColor = myRoute.color || '#3498db';
+                        if(myRoute.path_data) {
+                            let path = typeof myRoute.path_data === 'string' ? JSON.parse(myRoute.path_data) : myRoute.path_data;
+                            
+                            L.polyline(path, { color: routeColor, weight: 12, opacity: 0.2 }).addTo(map);
+                            const line = L.polyline(path, { color: routeColor, weight: 6, opacity: 0.9 }).addTo(map);
                             map.fitBounds(line.getBounds(), { padding: [50, 50] });
-                        } else {
-                            console.error("❌ Route found, but path_data is empty (NULL) in database.");
                         }
-                    } else {
-                        console.error("❌ Could not find a route with ID:", assignedRouteId);
+
+                        // B. DRAW STOPS & SAVE DATA
+                        let rawStops = myRoute.stops || myRoute.stops_json;
+
+                        if (rawStops) {
+                            let stops = typeof rawStops === 'string' ? JSON.parse(rawStops) : rawStops;
+                            
+                            // ✅ SAVE STOPS FOR LATER CALCULATION
+                            routeStopsList = stops;
+
+                            console.log(`📍 Drawing ${stops.length} stops for Driver.`);
+
+                            stops.forEach((stop, index) => {
+                                const stopIcon = L.divIcon({
+                                    className: '',
+                                    html: `<div style="
+                                        background-color: white; 
+                                        width: 18px; height: 18px; 
+                                        border-radius: 50%; 
+                                        border: 4px solid ${routeColor}; 
+                                        box-shadow: 0 0 10px ${routeColor};
+                                        z-index: 1000;
+                                        display:flex; align-items:center; justify-content:center;
+                                        font-weight:bold; font-size:10px; color:${routeColor};
+                                    ">${index + 1}</div>`,
+                                    iconSize: [18, 18],
+                                    iconAnchor: [9, 9]
+                                });
+
+                                L.marker([stop.lat, stop.lng], { icon: stopIcon })
+                                    .addTo(map)
+                                    .bindPopup(`<b>${stop.name}</b>`);
+                            });
+                        } else {
+                            console.log("Stops data empty for this route.");
+                        }
                     }
                 })
-                .catch(err => console.error("Error loading route shapes:", err));
+                .catch(err => console.error("Error:", err));
         }
         loadAssignedRoute();
 
-        // --- SPEEDOMETER & NEXT STOP ---
+        // --- 4. MATH HELPERS FOR DISTANCE ---
+        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+            var R = 6371; // Earth radius in km
+            var dLat = deg2rad(lat2-lat1);  
+            var dLon = deg2rad(lon2-lon1); 
+            var a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2); 
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+            var d = R * c; 
+            return d;
+        }
+
+        function deg2rad(deg) {
+            return deg * (Math.PI/180)
+        }
+
+        // --- 5. REAL-TIME NEXT STOP UPDATE ---
+        function updateNextStop(lat, lng) {
+            if (!routeStopsList || routeStopsList.length === 0) return;
+
+            let minDistance = Infinity;
+            let nearestStop = null;
+
+            // Find nearest stop
+            routeStopsList.forEach(stop => {
+                let d = getDistanceFromLatLonInKm(lat, lng, stop.lat, stop.lng);
+                if (d < minDistance) {
+                    minDistance = d;
+                    nearestStop = stop;
+                }
+            });
+
+            // Update UI
+            const nextStopEl = document.getElementById('next-stop-display');
+            const distEl = document.getElementById('dist-display');
+
+            if (nearestStop) {
+                // If closer than 50 meters (0.05 km)
+                if (minDistance < 0.05) {
+                    nextStopEl.innerText = "ARRIVING AT:";
+                    // Flash effect for attention
+                    nextStopEl.className = "text-lg font-bold text-green-400 leading-none animate-pulse";
+                    distEl.innerText = nearestStop.name;
+                    distEl.className = "text-xl font-bold text-white mt-1";
+                } else {
+                    nextStopEl.innerText = nearestStop.name;
+                    nextStopEl.className = "text-lg font-bold text-white leading-none";
+                    distEl.innerText = minDistance.toFixed(2) + " km away";
+                    distEl.className = "text-xs text-gray-400 mt-1";
+                }
+            }
+        }
+
+        // --- 6. WATCH GPS & CALL UPDATES ---
         navigator.geolocation.watchPosition((pos) => {
             const speed = pos.coords.speed; 
             const kmh = speed ? Math.round(speed * 3.6) : 0;
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+
+            // Update Speedometer
             document.getElementById('speed-display').innerText = kmh;
-            
             const speedBox = document.getElementById('speed-display').parentElement.parentElement;
             if(kmh > 60) {
                 speedBox.classList.replace('border-green-500', 'border-red-500');
@@ -227,18 +306,14 @@
                 speedBox.classList.replace('border-red-500', 'border-green-500');
                 speedBox.classList.remove('animate-pulse');
             }
+
+            // ✅ Update Next Stop
+            updateNextStop(lat, lng);
+
         }, (err) => console.log(err), { enableHighAccuracy: true });
 
-        // Simulated Next Stop
-        const demoStops = ["City Hall", "Gaisano Mall", "Public Market", "Transport Terminal"];
-        let stopIndex = 0;
-        setInterval(() => {
-            document.getElementById('next-stop-display').innerText = demoStops[stopIndex];
-            document.getElementById('dist-display').innerText = (Math.random() * 2).toFixed(1) + " km away";
-            stopIndex = (stopIndex + 1) % demoStops.length;
-        }, 10000);
 
-        // --- EXISTING LOGIC ---
+        // --- EXISTING LOGIC FOR PASSENGERS/REPORTS ---
         let currentCount = {{ $bus->passenger_count }};
         const display = document.getElementById('passenger-display');
         const revenueDisplay = document.getElementById('revenue-display');
@@ -296,28 +371,27 @@
         }
 
         // --- END SHIFT LOGIC ---
-    function endShift() {
-        if(!confirm("Are you sure you want to end your shift? This will mark the bus as OFFLINE.")) {
-            return;
-        }
+        function endShift() {
+            if(!confirm("Are you sure you want to end your shift? This will mark the bus as OFFLINE.")) {
+                return;
+            }
 
-        fetch(`/driver/end-shift/${busId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if(data.status === 'success') {
-                // ✅ UPDATE THIS LINE
-                window.location.href = '/driver/menu'; 
-            } else {
-                alert("Error ending shift. Please try again.");
-            }
-        });
-    }
+            fetch(`/driver/end-shift/${busId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'success') {
+                    window.location.href = '/driver/menu'; 
+                } else {
+                    alert("Error ending shift. Please try again.");
+                }
+            });
+        }
     </script>
 </body>
 </html>

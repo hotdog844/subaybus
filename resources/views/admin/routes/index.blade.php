@@ -78,12 +78,14 @@
 
                             <td class="p-5 text-right">
                                 <div class="flex justify-end gap-2">
-                                    <a href="{{ route('admin.routes.stops.index', $route->id) }}" class="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 font-bold text-xs hover:bg-blue-100 transition">
-                                        <i class="fas fa-map-pin mr-1"></i> Stops
+                                    <a href="{{ route('admin.routes.edit', $route->id) }}" class="btn btn-info btn-sm bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 transition">
+                                        <i class="fas fa-map-marker-alt"></i> Stops
                                     </a>
+                                    
                                     <a href="{{ route('admin.routes.edit', $route->id) }}" class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:text-blue-600 hover:bg-white transition shadow-sm">
                                         <i class="fas fa-pen text-xs"></i>
                                     </a>
+                                    
                                     <form action="{{ route('admin.routes.destroy', $route->id) }}" method="POST" onsubmit="return confirm('Delete route?');">
                                         @csrf @method('DELETE')
                                         <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:text-red-600 hover:bg-white transition shadow-sm">

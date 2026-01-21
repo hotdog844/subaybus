@@ -27,56 +27,94 @@
 
     <div class="p-5 space-y-4" id="stops-list">
         <div class="animate-pulse space-y-4">
-            <div class="h-24 bg-gray-200 rounded-2xl w-full"></div>
-            <div class="h-24 bg-gray-200 rounded-2xl w-full"></div>
-            <div class="h-24 bg-gray-200 rounded-2xl w-full"></div>
+            <div class="h-20 bg-gray-200 rounded-2xl w-full"></div>
+            <div class="h-20 bg-gray-200 rounded-2xl w-full"></div>
+            <div class="h-20 bg-gray-200 rounded-2xl w-full"></div>
         </div>
     </div>
 
     <script>
-    // 1. Get Data from Laravel
-    const rawStops = @json($stops);
+    // Global variable to store processed stops
+    let globalStops = [];
 
-    // 2. BACKUP LOCATION (Roxas City) - Safety Net
+    // Fallback Location (Roxas City)
     const FALLBACK_LAT = 11.5853; 
     const FALLBACK_LNG = 122.7511;
 
     document.addEventListener("DOMContentLoaded", () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(processLocation, useFallbackLocation, {
-                enableHighAccuracy: true,
-                timeout: 5000, 
-                maximumAge: 0
-            });
-        } else {
-            useFallbackLocation();
-        }
+        // 1. Fetch Data First
+        fetchStopsData().then(() => {
+            // 2. Then Get Location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(processLocation, useFallbackLocation, {
+                    enableHighAccuracy: true,
+                    timeout: 5000, 
+                    maximumAge: 0
+                });
+            } else {
+                useFallbackLocation();
+            }
+        });
     });
 
+    // --- FETCH DATA FROM API (Consistency with Dashboard) ---
+    async function fetchStopsData() {
+        try {
+            const response = await fetch('/api/routes'); // Uses your existing API
+            const routes = await response.json();
+            
+            globalStops = [];
+
+            // Flatten Routes into a single list of Stops
+            routes.forEach(route => {
+                if(route.stops && route.stops.length > 0) {
+                    route.stops.forEach(stop => {
+                        // Normalize data
+                        globalStops.push({
+                            name: stop.name,
+                            lat: parseFloat(stop.latitude || stop.lat),
+                            lng: parseFloat(stop.longitude || stop.lng),
+                            route_name: route.name,
+                            route_color: route.color || '#3b82f6',
+                            distance: 9999, // Placeholder
+                            walkTime: 0
+                        });
+                    });
+                }
+            });
+            console.log("Loaded " + globalStops.length + " stops from API.");
+        } catch (error) {
+            console.error("Failed to load stops:", error);
+            document.getElementById("stops-list").innerHTML = `<div class="text-center text-red-400 py-10">Failed to load data.</div>`;
+        }
+    } // <--- THIS WAS MISSING
+
     function processLocation(position) {
-        runApp(position.coords.latitude, position.coords.longitude);
+        document.getElementById("gps-status").innerHTML = `<i class="fas fa-map-marker-alt text-green-500"></i> Location Found`;
+        calculateAndRender(position.coords.latitude, position.coords.longitude);
     }
 
     function useFallbackLocation() {
-        // Only run if the list is empty to prevent overwriting valid data
-        if(document.getElementById("stops-list").innerHTML.trim() === "") {
-            console.warn("Using fallback location.");
-            runApp(FALLBACK_LAT, FALLBACK_LNG);
-        }
+        document.getElementById("gps-status").innerHTML = `<i class="fas fa-exclamation-triangle"></i> Using Default Location`;
+        calculateAndRender(FALLBACK_LAT, FALLBACK_LNG);
     }
 
-    function runApp(userLat, userLng) {
-        // Calculate Distance
-        rawStops.forEach(stop => {
-            const distKm = getDistance(userLat, userLng, stop.latitude, stop.longitude);
+    // --- LOGIC: CALCULATE & SORT ---
+    function calculateAndRender(userLat, userLng) {
+        if (globalStops.length === 0) return;
+
+        // 1. Calculate Distance for every stop
+        globalStops.forEach(stop => {
+            const distKm = getDistance(userLat, userLng, stop.lat, stop.lng);
             stop.distance = distKm;
-            stop.walkTime = Math.ceil((distKm * 1000) / 80); 
+            stop.walkTime = Math.ceil((distKm * 1000) / 80); // Avg walking speed 80m/min
         });
 
-        // Sort by Distance
-        rawStops.sort((a, b) => a.distance - b.distance);
+        // 2. Sort: Nearest first
+        globalStops.sort((a, b) => a.distance - b.distance);
 
-        renderList(rawStops);
+        // 3. Render
+        renderList(globalStops);
     }
 
     function renderList(stops) {
@@ -84,73 +122,78 @@
         container.innerHTML = "";
 
         if (stops.length === 0) {
-            container.innerHTML = `<div class="text-center py-10 opacity-50"><p>No bus stops found.</p></div>`;
+            container.innerHTML = `<div class="text-center py-10 opacity-50"><p>No stops found nearby.</p></div>`;
             return;
         }
 
-        stops.forEach((stop, index) => {
+        const displayStops = stops.slice(0, 20);
+
+        displayStops.forEach((stop) => {
+            // Format Distance
             let distText = stop.distance < 1 
                 ? Math.round(stop.distance * 1000) + " m" 
                 : stop.distance.toFixed(1) + " km";
 
-            let borderClass = index === 0 ? "border-green-500 ring-1 ring-green-100" : "border-transparent";
+            // Determine Color based on Route
+            let badgeClass = "bg-gray-100 text-gray-600";
+            let iconColor = "text-gray-400 bg-gray-50";
+            
+            if(stop.route_name.includes('Red')) { badgeClass = "bg-red-100 text-red-600"; iconColor = "text-red-500 bg-red-50"; }
+            if(stop.route_name.includes('Green')) { badgeClass = "bg-green-100 text-green-600"; iconColor = "text-green-500 bg-green-50"; }
+            if(stop.route_name.includes('Blue')) { badgeClass = "bg-blue-100 text-blue-600"; iconColor = "text-blue-500 bg-blue-50"; }
 
-            // FIXED: We pass the INDEX 'i' to the function
+            // SAFE STRING ESCAPING for the click event
+            const safeName = stop.name.replace(/'/g, "\\'");
+            const safeRoute = stop.route_name.replace(/'/g, "\\'");
+
             const html = `
-                <div onclick="goToMap(${index})" 
-                     class="bg-white p-5 rounded-2xl shadow-sm border ${borderClass} flex items-center justify-between cursor-pointer group hover:shadow-md mb-3">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <div onclick="goToDashboard(${stop.lat}, ${stop.lng}, '${safeName}', '${safeRoute}')" 
+                     class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between cursor-pointer active:scale-95 transition mb-3">
+                    
+                    <div class="flex items-center gap-4 overflow-hidden">
+                        <div class="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center ${iconColor}">
                             <i class="fas fa-bus-alt text-lg"></i>
                         </div>
-                        <div>
-                            <h3 class="font-bold text-gray-800 text-base">${stop.name}</h3>
-                            <p class="text-xs text-gray-500 mt-1"><i class="fas fa-walking"></i> ~${stop.walkTime} min</p>
+                        <div class="min-w-0">
+                            <h3 class="font-bold text-gray-800 text-sm truncate">${stop.name}</h3>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wide ${badgeClass}">
+                                    ${stop.route_name}
+                                </span>
+                            </div>
                         </div>
                     </div>
-                    <i class="fas fa-chevron-right text-gray-300"></i>
+
+                    <div class="text-right flex-shrink-0 pl-2">
+                        <div class="font-bold text-gray-800 text-lg leading-none">${distText}</div>
+                        <div class="text-xs text-gray-400 mt-1">~${stop.walkTime} min walk</div>
+                    </div>
                 </div>`;
             container.innerHTML += html;
         });
     }
 
-    // --- THE CRITICAL FIX ---
-    function goToMap(index) {
-        // 1. Look up the ACTUAL STOP object using the index
-        const stop = rawStops[index];
-
-        if (!stop) {
-            console.error("Stop data missing for index:", index);
-            return; 
-        }
-
-        // 2. Prepare URL Params with REAL coordinates
+    // --- NAVIGATION UPDATE ---
+    function goToDashboard(lat, lng, name, route) {
+        // Send Name and Route to dashboard via URL
         const params = new URLSearchParams({
-            focusLat: stop.latitude,  // Send 11.xxxx, NOT 0
-            focusLng: stop.longitude, // Send 122.xxxx, NOT undefined
-            stopName: stop.name
+            focusLat: lat,
+            focusLng: lng,
+            focusName: name,   // Sending Stop Name
+            focusRoute: route  // Sending Route Name (Green/Red/etc)
         });
-
-        // 3. Attach Blue Line Data (If Admin Saved It)
-        if (stop.route && stop.route.origin_lat) {
-            params.append('oLat', stop.route.origin_lat);
-            params.append('oLng', stop.route.origin_lng);
-            params.append('dLat', stop.route.destination_lat);
-            params.append('dLng', stop.route.destination_lng);
-        }
-
-        // 4. Go to Dashboard
         window.location.href = `/mobile/dashboard?${params.toString()}`;
     }
 
+    // --- MATH: HAVERSINE FORMULA ---
     function getDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371; 
+        const R = 6371; // Earth radius in km
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLon = (lon2 - lon1) * Math.PI / 180;
         const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
                   Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
-</script>
+    </script>
 </body>
 </html>

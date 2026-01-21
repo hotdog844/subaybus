@@ -9,31 +9,28 @@ use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\RfidController;
 use App\Http\Controllers\OCRController;
 
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-*/
+// 1. IMPORT YOUR MODEL
+use App\Models\Route as RouteModel; 
 
-// 1. GLOBAL HEADERS (Allows access from any device)
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: *');
 
-// 2. LIVE TRACKING ROUTE
-// We changed this from '/bus-locations' to '/live-tracking' 
-// to force the system to stop loading the old cached data.
-Route::get('/live-tracking', [BusLocationController::class, 'index']);
+// 2. ITO ANG SOLUSYON SA NAWALANG PINS (Direct Database Call)
+Route::get('/routes', function() {
+    // Kukunin nito lahat ng routes + stops nang walang error
+    return RouteModel::all();
+});
 
-// 3. GPS UPDATE ROUTE (For your 9176466392 device)
+// 3. LIVE TRACKING
+Route::get('/bus-locations', [BusLocationController::class, 'index']);
 Route::post('/gps/update', [BusLocationController::class, 'update']);
 
+// Other Features
 Route::get('/favorites/ids', [FavoriteController::class, 'ids']);
-
 Route::get('/plan-trip', [TripPlannerController::class, 'plan']);
-
-// The Hardware will hit this URL: http://your-ip-address/api/pay
 Route::post('/pay', [PaymentController::class, 'tapCard']);
-
 Route::post('/tap-card', [RfidController::class, 'tapCard']);
-
 Route::post('/verify-id', [OCRController::class, 'verifyStudentId']);
+Route::get('/routes/shapes', function() {
+    return RouteModel::all();
+});

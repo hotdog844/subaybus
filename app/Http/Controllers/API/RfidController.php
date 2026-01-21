@@ -13,8 +13,10 @@ class RfidController extends Controller
     {
         $uid = $request->input('uid'); // Get UID from ESP32
         
+        // Get Bus ID (Default to '1' if the ESP32 doesn't send it for some reason)
+        $busId = $request->input('bus_id', 1); 
+
         // 1. Find the card in database
-        // We use DB::table just for quick testing, but Models are better
         $card = DB::table('rfid_cards')->where('uid', $uid)->first();
 
         if (!$card) {
@@ -24,8 +26,15 @@ class RfidController extends Controller
             ]);
         }
 
-        // 2. Determine Fare
-        $fare = ($card->user_type == 'student') ? 12.00 : 15.00;
+        // 2. Determine Fare Logic
+        // Regular = 10.20
+        // Students/Seniors/PWD = 8.16
+        if ($card->user_type === 'regular') {
+            $fare = 10.20;
+        } else {
+            // This covers 'student', 'senior', 'pwd'
+            $fare = 8.16;
+        }
 
         // 3. Check Balance
         if ($card->balance < $fare) {
@@ -42,12 +51,13 @@ class RfidController extends Controller
             'updated_at' => Carbon::now()
         ]);
 
-        // 5. Create Log (For Panel Analytics)
+        // 5. Create Log (Digital Receipt)
         DB::table('transaction_logs')->insert([
             'rfid_uid' => $uid,
             'transaction_type' => 'PAYMENT',
             'amount' => $fare,
-            'location' => 'Bus 01', // Static for now
+            // Dynamic Location: "Bus 01", "Bus 02", etc.
+            'location' => 'Bus ' . str_pad($busId, 2, '0', STR_PAD_LEFT), 
             'created_at' => Carbon::now(),
             'updated_at' => Carbon::now()
         ]);

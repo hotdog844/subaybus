@@ -1,21 +1,19 @@
 @extends('layouts.admin')
 
-@section('title', 'Create Professional Route')
+@section('title', 'Create New Route')
 
-{{-- 1. LOAD MAP ASSETS IN HEAD --}}
+{{-- 1. LOAD LEAFLET CSS --}}
 @section('styles')
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
-
     <style>
         #admin-map { 
-            height: 500px; 
+            height: 600px; 
             width: 100%; 
             border-radius: 12px; 
             border: 2px solid #e2e8f0; 
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             z-index: 1;
+            cursor: crosshair; /* Crosshair cursor para alam na pwedeng mag-click */
         }
         .control-panel {
             background: #f8fafc;
@@ -24,7 +22,13 @@
             margin-bottom: 20px;
             border: 1px solid #e2e8f0;
         }
-        .leaflet-routing-container { display: none !important; } 
+        /* Custom Dot for Waypoints */
+        .waypoint-icon {
+            background-color: #3b82f6;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
     </style>
 @endsection
 
@@ -51,43 +55,43 @@
 
             {{-- MAP CONTROLS --}}
             <div class="control-panel">
-                <h3 class="font-bold text-gray-700 mb-2">🗺️ Interactive Route Planner</h3>
+                <h3 class="font-bold text-gray-700 mb-2">🗺️ Multipoint Route Planner</h3>
                 <p class="text-sm text-gray-500 mb-4">
-                    1. Click the map to set <b>Origin (Green)</b>.<br>
-                    2. Click again to set <b>Destination (Red)</b>.<br>
-                    3. <b>Type the specific name</b> of the location in the boxes below.
+                    1. Drag <b>Green (Start)</b> and <b>Red (End)</b> markers.<br>
+                    2. <b>Click anywhere on the road</b> to create stops/corners (Blue Dots).<br>
+                    3. The blue line will curve to follow your clicks.
                 </p>
                 
                 <div class="flex gap-4 text-sm font-mono bg-white p-3 rounded border border-gray-200">
-                    
-                    {{-- ORIGIN INPUTS (UPDATED: Visible & Editable) --}}
                     <div class="flex-1">
-                        <span class="text-green-600 font-bold">Origin:</span> <span id="lbl_origin" class="text-xs text-gray-400">Click Map</span>
-                        
-                        <input type="text" name="origin" id="input_origin_name" placeholder="Name this location (e.g. Pueblo Terminal)" class="text-sm border border-gray-300 rounded p-2 w-full mt-1 bg-gray-50 focus:bg-white outline-none focus:ring-1 focus:ring-green-500" required>
-                        
-                        <input type="hidden" name="origin_lat" id="input_origin_lat">
-                        <input type="hidden" name="origin_lng" id="input_origin_lng">
-                        <input type="hidden" name="distance" id="input_distance">
+                        <span class="text-green-600 font-bold">Origin:</span>
+                        <input type="text" name="origin" id="input_origin_name" placeholder="Origin Name" class="text-sm border border-gray-300 rounded p-1 w-full mt-1" required>
+                        <input type="hidden" name="origin_lat" id="origin_lat">
+                        <input type="hidden" name="origin_lng" id="origin_lng">
                     </div>
-
-                    {{-- DESTINATION INPUTS (UPDATED: Visible & Editable) --}}
                     <div class="flex-1">
-                        <span class="text-red-600 font-bold">Dest:</span> <span id="lbl_dest" class="text-xs text-gray-400">Click Map</span>
-                        
-                        <input type="text" name="destination" id="input_dest_name" placeholder="Name this location (e.g. City Hall)" class="text-sm border border-gray-300 rounded p-2 w-full mt-1 bg-gray-50 focus:bg-white outline-none focus:ring-1 focus:ring-red-500" required>
-                        
-                        <input type="hidden" name="destination_lat" id="input_dest_lat">
-                        <input type="hidden" name="destination_lng" id="input_dest_lng">
+                        <span class="text-red-600 font-bold">Dest:</span>
+                        <input type="text" name="destination" id="input_dest_name" placeholder="Destination Name" class="text-sm border border-gray-300 rounded p-1 w-full mt-1" required>
+                        <input type="hidden" name="destination_lat" id="destination_lat">
+                        <input type="hidden" name="destination_lng" id="destination_lng">
                     </div>
                 </div>
+                
+                {{-- AUTO-CALCULATED FIELDS --}}
+                <input type="hidden" name="distance" id="input_distance">
+                <input type="hidden" name="path_data" id="path_data">
+            </div>
 
-                <input type="hidden" name="path_data" id="path_data_input">
+            {{-- MAP ACTIONS --}}
+            <div class="mb-2 flex justify-end">
+                <button type="button" id="clearPointsBtn" class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 transition flex items-center gap-2">
+                    <i class="fas fa-undo"></i> Reset / Clear Waypoints
+                </button>
             </div>
 
             {{-- THE MAP --}}
             <div id="admin-map"></div>
-
+            
             <div class="mt-8 flex justify-end">
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transform transition hover:-translate-y-0.5">
                     Save Route Configuration
@@ -96,133 +100,141 @@
         </form>
     </div>
 
-    {{-- SCRIPTS --}}
+    {{-- 2. LEAFLET SCRIPT ONLY --}}
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            
-            // 1. Initialize Map
-            var map = L.map('admin-map').setView([11.5853, 122.7511], 13);
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- 1. SETUP MAP ---
+            const defaultLat = 11.5853; 
+            const defaultLng = 122.7511; 
+
+            const map = L.map('admin-map').setView([defaultLat, defaultLng], 13);
+
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap'
+                attribution: '© OpenStreetMap contributors'
             }).addTo(map);
 
-            // 2. Variables
-            var originMarker = null;
-            var destMarker = null;
-            var routeControl = null;
-
-            // 3. Icons
-            var greenIcon = new L.Icon({
-                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+            // --- 2. ICONS ---
+            const originIcon = L.divIcon({
+                className: 'bg-transparent',
+                html: '<div class="w-8 h-8 bg-green-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center text-white font-bold text-xs">A</div>',
+                iconSize: [32, 32], iconAnchor: [16, 32]
             });
 
-            var redIcon = new L.Icon({
-                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+            const destIcon = L.divIcon({
+                className: 'bg-transparent',
+                html: '<div class="w-8 h-8 bg-red-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center text-white font-bold text-xs">B</div>',
+                iconSize: [32, 32], iconAnchor: [16, 32]
             });
 
-            // 4. Click Handler
+            const waypointIcon = L.divIcon({
+                className: 'bg-transparent',
+                html: '<div class="waypoint-icon" style="width:12px; height:12px;"></div>',
+                iconSize: [12, 12], iconAnchor: [6, 6]
+            });
+
+            // --- 3. STATE ---
+            // Start positions (Default)
+            let startPos = [defaultLat, defaultLng];
+            let endPos = [defaultLat + 0.01, defaultLng + 0.01];
+
+            let originMarker = L.marker(startPos, { draggable: true, icon: originIcon }).addTo(map);
+            let destMarker = L.marker(endPos, { draggable: true, icon: destIcon }).addTo(map);
+            let routeLine = L.polyline([], { color: '#3b82f6', weight: 6, opacity: 0.8 }).addTo(map);
+
+            let waypoints = []; 
+            let waypointMarkers = [];
+
+            // Initialize Inputs
+            updateInputs(originMarker.getLatLng(), 'origin');
+            updateInputs(destMarker.getLatLng(), 'destination');
+            calculatePath(); // Initial straight line
+
+            // --- 4. LISTENERS ---
+
+            // Drag Start (Green)
+            originMarker.on('dragend', function (e) {
+                updateInputs(e.target.getLatLng(), 'origin');
+                calculatePath();
+            });
+
+            // Drag End (Red)
+            destMarker.on('dragend', function (e) {
+                updateInputs(e.target.getLatLng(), 'destination');
+                calculatePath();
+            });
+
+            // Click Map (Add Blue Dot)
             map.on('click', function(e) {
-                if (!originMarker) {
-                    // Set Origin
-                    originMarker = L.marker(e.latlng, {draggable: true, icon: greenIcon}).addTo(map).bindPopup("Origin").openPopup();
-                    updateCoordinates('origin', e.latlng);
-                    
-                    originMarker.on('dragend', function(event) {
-                        updateCoordinates('origin', event.target.getLatLng());
-                        calculateRoute();
-                    });
+                // Add to data
+                waypoints.push(e.latlng);
 
-                } else if (!destMarker) {
-                    // Set Destination
-                    destMarker = L.marker(e.latlng, {draggable: true, icon: redIcon}).addTo(map).bindPopup("Destination").openPopup();
-                    updateCoordinates('dest', e.latlng);
-                    
-                    destMarker.on('dragend', function(event) {
-                        updateCoordinates('dest', event.target.getLatLng());
-                        calculateRoute();
-                    });
+                // Add visual
+                const mk = L.marker(e.latlng, { icon: waypointIcon }).addTo(map);
+                waypointMarkers.push(mk);
 
-                    calculateRoute();
-                }
+                // Recalculate
+                calculatePath();
             });
 
-            // 5. Update Hidden Inputs
-            function updateCoordinates(type, latlng) {
-                var lat = latlng.lat.toFixed(6);
-                var lng = latlng.lng.toFixed(6);
-                var str = lat + ", " + lng;
+            // Reset Button
+            document.getElementById('clearPointsBtn').addEventListener('click', function() {
+                waypoints = [];
+                waypointMarkers.forEach(m => map.removeLayer(m));
+                waypointMarkers = [];
+                calculatePath();
+            });
 
-                if (type === 'origin') {
-                    document.getElementById('lbl_origin').innerText = str;
-                    document.getElementById('input_origin_lat').value = lat;
-                    document.getElementById('input_origin_lng').value = lng;
-                    
-                    // Logic: Only auto-fill if the user hasn't typed anything yet
-                    var nameInput = document.getElementById('input_origin_name');
-                    if(nameInput.value === "") {
-                        nameInput.value = "Pinned Location"; 
-                    }
-
-                } else {
-                    document.getElementById('lbl_dest').innerText = str;
-                    document.getElementById('input_dest_lat').value = lat;
-                    document.getElementById('input_dest_lng').value = lng;
-                    
-                    var nameInput = document.getElementById('input_dest_name');
-                    if(nameInput.value === "") {
-                        nameInput.value = "Pinned Location"; 
-                    }
-                }
+            function updateInputs(latlng, type) {
+                document.getElementById(type + '_lat').value = latlng.lat.toFixed(6);
+                document.getElementById(type + '_lng').value = latlng.lng.toFixed(6);
             }
 
-            // 6. Calculate Route
-            function calculateRoute() {
-                if (!originMarker || !destMarker) return;
+            // --- 5. OSRM CALCULATION ---
+            async function calculatePath() {
+                const oLat = originMarker.getLatLng().lat;
+                const oLng = originMarker.getLatLng().lng;
+                const dLat = destMarker.getLatLng().lat;
+                const dLng = destMarker.getLatLng().lng;
 
-                if (routeControl) {
-                    map.removeControl(routeControl);
-                }
-
-                routeControl = L.Routing.control({
-                    waypoints: [
-                        originMarker.getLatLng(),
-                        destMarker.getLatLng()
-                    ],
-                    routeWhileDragging: false,
-                    addWaypoints: false,
-                    createMarker: function() { return null; }, 
-                    lineOptions: {
-                        styles: [{color: 'blue', opacity: 0.6, weight: 6}]
-                    },
-                    show: false 
-                }).addTo(map);
-
-                // Extract the coordinates AND DISTANCE from the calculated route
-                routeControl.on('routesfound', function(e) {
-                    var routes = e.routes;
-                    var summary = routes[0].summary;
-                    
-                    // 1. Get Coordinates for the blue line
-                    var coordinates = routes[0].coordinates; 
-                    var simplifiedPath = coordinates.map(c => [c.lat, c.lng]);
-                    document.getElementById('path_data_input').value = JSON.stringify(simplifiedPath);
-                    
-                    // 2. Get Distance (New!)
-                    // summary.totalDistance is in meters. Convert to KM.
-                    var km = (summary.totalDistance / 1000).toFixed(2);
-                    document.getElementById('input_distance').value = km;
-                    
-                    console.log("Route calculated: " + km + " km");
+                // Build Coordinate String: Start -> Waypoints -> End
+                // OSRM requires: {lng},{lat}
+                let coordsString = `${oLng},${oLat}`;
+                
+                waypoints.forEach(pt => {
+                    coordsString += `;${pt.lng},${pt.lat}`;
                 });
-            }
 
+                coordsString += `;${dLng},${dLat}`;
+
+                const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`;
+
+                try {
+                    const response = await fetch(url);
+                    if(!response.ok) throw new Error('Network response was not ok');
+                    const data = await response.json();
+
+                    if(data.routes && data.routes.length > 0) {
+                        const routeData = data.routes[0];
+                        const rawCoords = routeData.geometry.coordinates;
+                        
+                        // Flip [Lng, Lat] to [Lat, Lng] for Leaflet
+                        const leafletCoords = rawCoords.map(c => [c[1], c[0]]);
+
+                        // Draw Line
+                        routeLine.setLatLngs(leafletCoords);
+                        
+                        // Save Data
+                        document.getElementById('path_data').value = JSON.stringify(leafletCoords);
+                        document.getElementById('input_distance').value = (routeData.distance / 1000).toFixed(2);
+                    }
+                } catch (error) {
+                    console.error("Routing Error:", error);
+                    // Fallback to straight line if offline
+                    routeLine.setLatLngs([[oLat, oLng], ...waypoints, [dLat, dLng]]);
+                }
+            }
         });
     </script>
 @endsection

@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\BusStop;
+use App\Models\Stop; // Changed from BusStop to Stop
 use Illuminate\Http\Request;
 
 class NearbyStopsController extends Controller
 {
     public function index()
     {
-        // Eager load the relationships: for each stop, get its route,
-        // and for that route, get all of its associated buses and their drivers.
-        $stops = BusStop::with('route.buses.driver')->get();
+        // Get all stops and include the route details
+        $stops = Stop::with('route')->get();
         
+        // Pass data to the view
         return view('nearby_stops', compact('stops'));
     }
 }

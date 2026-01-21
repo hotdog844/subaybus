@@ -104,32 +104,25 @@
     <div id="search-results" class="flex-grow overflow-y-auto p-4 no-scrollbar">
         <div id="live-search-container" class="hidden space-y-2 mb-4"></div>
         <div id="default-search-content" class="mt-4">
-            
-            <a href="{{ route('mobile.planner') }}" class="block mb-6">
-    <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-center gap-4 active:scale-95 transition">
-        <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-md">
-            <i class="fas fa-directions"></i>
+    
+    <a href="{{ route('mobile.planner') }}" class="block mb-6">
+        <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-center gap-4 active:scale-95 transition">
+            <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-md">
+                <i class="fas fa-directions"></i>
+            </div>
+            <div>
+                <h4 class="font-bold text-blue-900 text-sm">Get Directions</h4>
+                <p class="text-xs text-blue-600">Plan a trip from A to B</p>
+            </div>
+            <i class="fas fa-chevron-right text-blue-300 ml-auto"></i>
         </div>
-        <div>
-            <h4 class="font-bold text-blue-900 text-sm">Get Directions</h4>
-            <p class="text-xs text-blue-600">Plan a trip from A to B</p>
-        </div>
-        <i class="fas fa-chevron-right text-blue-300 ml-auto"></i>
+    </a>
+
+    <div class="text-center mt-12 opacity-50">
+        <i class="fas fa-search text-4xl text-gray-300 mb-3"></i>
+        <p class="text-gray-500 text-sm">Type above to find your bus stop.</p>
     </div>
-</a>
-            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">Suggested Places</h3>
-
-            <div class="flex flex-wrap gap-2 mb-6">
-                <button class="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-600 shadow-sm hover:border-green-500 hover:text-green-600 transition">🛍️ Malls</button>
-                <button class="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-600 shadow-sm hover:border-green-500 hover:text-green-600 transition">🎓 Schools</button>
-                <button class="px-4 py-2 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-600 shadow-sm hover:border-green-500 hover:text-green-600 transition">🚌 Terminals</button>
-            </div>
-
-            <div class="text-center mt-12 opacity-50">
-                <i class="fas fa-search text-4xl text-gray-300 mb-3"></i>
-                <p class="text-gray-500 text-sm">Type above to find your bus.</p>
-            </div>
-        </div>
+</div>
     </div>
 </div>
 
@@ -209,6 +202,13 @@
             </button>
         </div>
     </div>
+
+    <button id="btn-toggle-stops" class="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center text-green-600 border border-gray-100 active:scale-95 transition relative group">
+        <i class="fas fa-map-signs text-lg"></i>
+        <span class="absolute right-12 bg-black/70 text-white text-[10px] px-2 py-1 rounded hidden group-hover:block whitespace-nowrap">
+            Toggle Stops
+        </span>
+    </button>
 
     <a href="{{ route('mobile.nearby') }}" class="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center text-green-600 hover:bg-green-50 active:scale-95 transition border border-gray-100 group">
         <i class="fas fa-location-crosshairs text-lg group-hover:animate-pulse"></i>
@@ -427,14 +427,6 @@
     let stopLayer = L.layerGroup().addTo(map); // A special invisible layer for dots
     let allStopsData = []; // We will store the database information here
 
-    // Load the data silently in the background
-    fetch('/api/stops')
-        .then(res => res.json())
-        .then(data => {
-            allStopsData = data;
-            console.log("✅ Background Data: Loaded " + data.length + " stops.");
-        });
-
     // NEW: Store the ID of the bus we are following
     let trackedBusId = null;
 
@@ -496,93 +488,245 @@
     var busMarkers = {}; // Object to store our markers: { bus_id: marker_object }
 
     // --- DRAW ROUTE LINES ---
-    // --- LOAD ROUTE DATA (Don't draw yet) ---
+    // --- 1. FEATURE: GUMAWA NG LISTAHAN SA SEARCH BAR ---
+    function renderInitialSuggestions() {
+        const defaultContent = document.getElementById('default-search-content');
+        if(!defaultContent) return;
+
+        console.log("Creating suggestions list for", allStopsData.length, "stops");
+
+        // Panatilihin ang Trip Planner Button sa taas
+        let html = `
+            <a href="/mobile/planner" class="block mb-4">
+                <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-center gap-4 active:scale-95 transition">
+                    <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-md">
+                        <i class="fas fa-directions"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-blue-900 text-sm">Trip Planner</h4>
+                        <p class="text-xs text-blue-600">Get directions from A to B</p>
+                    </div>
+                    <i class="fas fa-chevron-right text-blue-300 ml-auto"></i>
+                </div>
+            </a>
+            <h3 class="text-gray-400 text-xs font-bold uppercase tracking-wider mb-3 px-1">Suggested Stops</h3>
+            <div class="space-y-2 pb-10">
+        `;
+
+        if (allStopsData.length === 0) {
+            html += `<div class="text-center text-gray-400 text-xs py-4">No stops available.</div>`;
+        } else {
+            // Sort Alphabetically
+            const sorted = allStopsData.slice().sort((a, b) => a.name.localeCompare(b.name));
+            
+            sorted.forEach(stop => {
+                // Determine Icon Color based on Route
+                let iconColor = "text-gray-400";
+                if(stop.route_name) {
+                    if(stop.route_name.includes('Red')) iconColor = "text-red-500";
+                    else if(stop.route_name.includes('Green')) iconColor = "text-green-500";
+                    else if(stop.route_name.includes('Blue')) iconColor = "text-blue-500";
+                }
+
+                // Add Item to List
+                html += `
+                    <div onclick="window.focusOnStopFromSearch(${stop.lat}, ${stop.lng})" 
+                         class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3 active:bg-gray-50 transition cursor-pointer">
+                        <div class="w-8 h-8 rounded-full bg-gray-50 ${iconColor} flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-map-pin text-xs"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-800 text-sm">${stop.name}</h4>
+                            <p class="text-[10px] text-gray-500">Ride: ${stop.route_name}</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        html += `</div>`;
+        defaultContent.innerHTML = html;
+    }
+
+    // --- 2. HELPER: KAPAG KINLICK ANG SUGGESTION ---
+    window.focusOnStopFromSearch = function(lat, lng) {
+        // Hide Search Overlay
+        document.getElementById('search-overlay').classList.add('hidden');
+        document.getElementById('search-overlay').classList.remove('flex');
+        
+        // Fly to Map Location
+        map.flyTo([lat, lng], 16, { animate: true, duration: 1.0 });
+    };
+
     function loadRouteShapes() {
-        fetch('/api/routes/shapes')
+        console.log("Fetching system data...");
+        
+        fetch('/api/routes?t=' + new Date().getTime())
             .then(res => res.json())
             .then(routes => {
+                
+                // Reset Data Containers
+                allStopsData = [];
+                stopLayer.clearLayers();
+                routeShapesData = {}; // Clear old shapes
+
                 routes.forEach(route => {
+                    // --- FIX IS HERE: Change 'route.path' to 'route.path_data' ---
                     if (route.path_data) {
-                        // Store data by Route Name so we can find it later
-                        routeShapesData[route.name] = {
-                            color: route.color,
-                            path: JSON.parse(route.path_data)
-                        };
+                        let parsedPath = route.path_data; // <--- CORRECTED VARIABLE
+                        
+                        // Parse JSON string if needed
+                        if (typeof parsedPath === 'string') {
+                            try {
+                                parsedPath = JSON.parse(parsedPath);
+                            } catch (e) {
+                                console.error("JSON Parse error for route:", route.name);
+                                parsedPath = [];
+                            }
+                        }
+
+                        if(Array.isArray(parsedPath)) {
+                            // Store data using Name AND ID for easier lookup
+                            const shapeData = { color: route.color || '#3b82f6', path: parsedPath };
+                            routeShapesData[route.name] = shapeData;
+                            routeShapesData[route.id] = shapeData;
+                        }
+                    }
+
+                    // B. SAVE STOPS (Pins & Search)
+                    if (route.stops && Array.isArray(route.stops) && route.stops.length > 0) { // Added Array check
+                        route.stops.forEach(stop => {
+                            const stopObj = {
+                                ...stop,
+                                lat: parseFloat(stop.lat),
+                                lng: parseFloat(stop.lng),
+                                route_name: route.name,
+                                route_id: route.id,
+                                route_color: route.color
+                            };
+                            
+                            allStopsData.push(stopObj);
+
+                            if(typeof createStopMarker === 'function') {
+                                createStopMarker(stopObj);
+                            }
+                        });
                     }
                 });
-                console.log("Routes loaded:", Object.keys(routeShapesData));
+
+                console.log("✅ Data Loaded. Routes:", Object.keys(routeShapesData).length, "Stops:", allStopsData.length);
+                renderInitialSuggestions(); 
             })
             .catch(err => console.error("Error loading routes:", err));
     }
 
+    // --- 3. CREATE STOP PINS 
+   // --- 3. CREATE STOP PINS (Fixed Popup Size) ---
+    function createStopMarker(stop) {
+        
+        const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${stop.lat},${stop.lng}&travelmode=walking`;
+
+        const stopIcon = L.divIcon({
+            className: 'official-stop-marker',
+            html: `<div style="background-color: white; color: #475569; width: 18px; height: 18px; border-radius: 50%; border: 2px solid #475569; box-shadow: 0 1px 3px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 9px;"><i class="fas fa-map-pin"></i></div>`,
+            iconSize: [18, 18], 
+            iconAnchor: [9, 9],
+            popupAnchor: [0, -10]
+        });
+
+        // TINAASAN KO ANG MIN-WIDTH para magkasya agad ang buttons
+        const popupContent = `
+            <div class="text-center p-1 min-w-[240px] font-sans">
+                <div class="mb-3">
+                    <h4 class="font-black text-gray-800 text-base leading-tight mb-0.5">${stop.name}</h4>
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bus Stop</span>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <button onclick="window.visualizeRoute('${stop.route_id}')" 
+                        class="w-full bg-[#00b894] hover:bg-[#00a383] text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-md active:scale-95 transition flex items-center justify-center gap-2">
+                       <i class="fas fa-route"></i> Show Route Line
+                    </button>
+
+                    <a href="${googleMapsUrl}" target="_blank" 
+                       class="w-full bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold py-2.5 px-4 rounded-xl shadow-sm active:scale-95 transition flex items-center justify-center gap-2">
+                        <i class="fas fa-walking text-blue-500"></i> Get Directions
+                    </a>
+                </div>
+
+                <div class="mt-3 pt-2 border-t border-gray-100 flex justify-between items-center text-[10px] text-gray-500">
+                    <span>Route:</span>
+                    <span class="font-bold bg-gray-100 px-2 py-0.5 rounded text-gray-600">${stop.route_name}</span>
+                </div>
+            </div>
+        `;
+
+        // --- DITO ANG FIX: Nagdagdag tayo ng options sa bindPopup ---
+        const marker = L.marker([stop.lat, stop.lng], { icon: stopIcon })
+            .bindPopup(popupContent, {
+                maxWidth: 300,   // Hangganan ng lapad
+                minWidth: 250,   // Siguradong lapad (para di masira buttons)
+                autoPanPadding: [20, 20] // Padding mula sa gilid ng screen
+            });
+        
+        stopLayer.addLayer(marker);
+        stop.marker = marker;
+    }
     // Call it ONCE when map loads
     loadRouteShapes();
 
     // ============================================
-    // 🎨 DRAW ROUTE ON MAP (Defense-Ready Fix)
+    // 🎨 DRAW ROUTE ON MAP (Fixed: Exact ID Match First)
     // ============================================
-    window.showRouteOnMap = function(busNumber) { // Added 'window.' to make sure it's global
-        console.log("Attempting to draw route for Bus ID:", busNumber);
+    window.showRouteOnMap = function(inputIdentifier) { 
+        console.log("Attempting to draw route for:", inputIdentifier);
 
         // 1. Clear previous line and markers
         if (typeof activePolyline !== 'undefined' && activePolyline) {
             map.removeLayer(activePolyline);
+            activePolyline = null;
         }
         if (typeof activeMarkers !== 'undefined') {
             activeMarkers.forEach(m => map.removeLayer(m));
             activeMarkers = [];
         }
 
-        // 2. Determine the Keyword (Defense-Ready Fix)
-        let searchKeyword = "";
+        // 2. FIND THE ROUTE DATA
+        let routeData = null;
+        let routeKey = null;
 
-        // We check the busNumber, but we ALSO check the route name if available
-        // This ensures that even if the ID is a number, we find the color.
-        let textToSearch = String(busNumber).toLowerCase();
+        // A. SUBUKAN ANG DIRECT MATCH (Priority: ID Match)
+        // Ito ang mag-aayos ng problema mo. Hahanapin niya agad ang ID (e.g., "2") sa database.
+        if (routeShapesData[inputIdentifier]) {
+            routeData = routeShapesData[inputIdentifier];
+            routeKey = inputIdentifier;
+            console.log("✅ Exact match found via ID/Name:", routeKey);
+        } 
         
-        // If we can find the route name from the global data, add it to the search
-        if (selectedBusData && selectedBusData.route_name) {
-            textToSearch += " " + selectedBusData.route_name.toLowerCase();
+        // B. KUNG WALANG DIRECT MATCH, SUBUKAN ANG KEYWORD SEARCH (Fallback)
+        else {
+            let searchStr = String(inputIdentifier).toLowerCase();
+            
+            // Hanapin sa keys ng routeShapesData kung may tugma
+            let foundKey = Object.keys(routeShapesData).find(key => 
+                key.toLowerCase().includes(searchStr)
+            );
+
+            if (foundKey) {
+                routeData = routeShapesData[foundKey];
+                routeKey = foundKey;
+                console.log("🔍 Fuzzy match found:", routeKey);
+            }
         }
 
-        if (textToSearch.includes("01") || textToSearch.includes("green")) {
-            searchKeyword = "Green";
-        } 
-        else if (textToSearch.includes("42") || textToSearch.includes("red")) {
-            searchKeyword = "Red";
-        } 
-        else if (textToSearch.includes("10") || textToSearch.includes("blue")) {
-            searchKeyword = "Blue";
-        } 
-        else if (textToSearch.includes("uv") || textToSearch.includes("pontevedra")) {
-            searchKeyword = "Pontevedra";
+        // C. KUNG WALA TALAGANG MAHANAP
+        if (!routeData) {
+            console.error("❌ Route data not found for:", inputIdentifier);
+            // alert("Sorry, the map line for this route is not yet available."); 
+            return; // Huminto dito, HUWAG mag-default sa Green
         }
 
-        if (!searchKeyword) {
-            // If it still fails, let's default to Green so the app doesn't crash during defense
-            console.warn("⚠️ Unknown Bus ID, defaulting to Green Route for safety.");
-            searchKeyword = "Green"; 
-        }
-
-        console.log("🔍 Looking for route data containing keyword:", searchKeyword);
-
-        // 3. Find the matching data in routeShapesData
-        // We ignore the exact name "PdP Green Route" and just look for "Green"
-        let foundKey = Object.keys(routeShapesData).find(key => 
-            key.toLowerCase().includes(searchKeyword.toLowerCase())
-        );
-
-        if (!foundKey) {
-            console.error(`❌ CRITICAL: No route found matching '${searchKeyword}'. Available routes are:`, Object.keys(routeShapesData));
-            // For the defense, alert the user so you know data is missing
-            alert(`System Error: Route data for ${searchKeyword} is missing.`);
-            return;
-        }
-
-        console.log("✅ Found matching route:", foundKey);
-        const routeData = routeShapesData[foundKey];
-
-        // 4. Draw the Line
+        // 3. Draw the Line (Ito yung existing drawing logic mo)
         activePolyline = L.polyline(routeData.path, {
             color: routeData.color,
             weight: 6,
@@ -592,7 +736,7 @@
             dashArray: '1, 10', 
         }).addTo(map);
         
-        // Background line for contrast
+        // Background line
         const bgLine = L.polyline(routeData.path, {
             color: routeData.color,
             weight: 3,
@@ -601,31 +745,33 @@
         
         activePolyline = L.layerGroup([bgLine, activePolyline]).addTo(map);
 
-        // 5. Add Start & End Markers
-        const start = routeData.path[0];
-        const end = routeData.path[routeData.path.length - 1];
+        // 4. Add Start & End Markers
+        if (routeData.path.length > 0) {
+            const start = routeData.path[0];
+            const end = routeData.path[routeData.path.length - 1];
 
-        const startIcon = L.divIcon({
-            className: '',
-            html: `<div style="background: white; border: 4px solid #2ecc71; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
-            iconSize: [16, 16],
-            iconAnchor: [8, 8]
-        });
+            const startIcon = L.divIcon({
+                className: '',
+                html: `<div style="background: white; border: 4px solid #2ecc71; width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
 
-        const endIcon = L.divIcon({
-            className: '',
-            html: `<div style="background: white; border: 4px solid #e74c3c; width: 16px; height: 16px; border-radius: 0%; transform: rotate(45deg); box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
-            iconSize: [16, 16],
-            iconAnchor: [8, 8]
-        });
+            const endIcon = L.divIcon({
+                className: '',
+                html: `<div style="background: white; border: 4px solid #e74c3c; width: 16px; height: 16px; border-radius: 0%; transform: rotate(45deg); box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
 
-        const m1 = L.marker(start, {icon: startIcon}).addTo(map).bindPopup("Start: " + foundKey);
-        const m2 = L.marker(end, {icon: endIcon}).addTo(map).bindPopup("End: " + foundKey);
-        
-        activeMarkers.push(m1, m2);
+            const m1 = L.marker(start, {icon: startIcon}).addTo(map).bindPopup("Start: " + routeKey);
+            const m2 = L.marker(end, {icon: endIcon}).addTo(map).bindPopup("End: " + routeKey);
+            
+            activeMarkers.push(m1, m2);
 
-        // 6. Zoom map to fit the route
-        map.fitBounds(bgLine.getBounds(), { padding: [50, 50] });
+            // 5. Zoom to fit
+            map.fitBounds(bgLine.getBounds(), { padding: [50, 50] });
+        }
     };
 
     // --- REPLACED: REAL-TIME BUS TRACKING WITH PASSENGER DATA ---
@@ -644,82 +790,21 @@
                 var lng = parseFloat(bus.lng);
 
                 // 2. COLOR LOGIC
-                // Default to gray, but you can map specific names to colors if you want
-let markerColor = '#636e72'; // Default Gray
-// Check the new route_name field
-if (bus.route_name) {
-    if (bus.route_name.includes("Red")) markerColor = '#e74c3c';
-    else if (bus.route_name.includes("Blue")) markerColor = '#0984e3';
-    else if (bus.route_name.includes("Green")) markerColor = '#00b894';
-    else if (bus.route_name.includes("UV")) markerColor = '#6c5ce7';
-}
-                
-                // 3. GHOST CHECK
-                let plateStr = bus.plate_number ? String(bus.plate_number) : '';
-                let isGhost = plateStr.startsWith('SIM');
-                if (isGhost && !bus.route) {
-                    markerColor = '#636e72'; 
+                let markerColor = '#636e72'; // Default Gray
+                if (bus.route_name) {
+                    if (bus.route_name.includes("Red")) markerColor = '#e74c3c';
+                    else if (bus.route_name.includes("Blue")) markerColor = '#0984e3';
+                    else if (bus.route_name.includes("Green")) markerColor = '#00b894';
+                    else if (bus.route_name.includes("UV")) markerColor = '#6c5ce7';
                 }
-
-                // 4. DISPLAY DATA
-                const driverDisplay = bus.driver_name && bus.driver_name !== 'No Driver Assigned' 
-                                    ? `<span class="text-green-400 font-bold">${bus.driver_name}</span>` 
-                                    : '<span class="text-gray-400">Auto-Bot</span>';
-
-                const routeName = bus.route_name || 'No Route Set';
-
-                // --- 5. FARE LOGIC (Correctly placed OUTSIDE popupContent) ---
-                const fareDisplay = bus.fare 
-                                ? `<div class="mt-2 pt-2 border-t border-gray-700">
-                                    <span class="text-[10px] text-gray-400 uppercase">Base Fare</span>
-                                    <div class="text-green-400 font-bold text-lg">₱${bus.fare.base_price}</div>
-                                    <div class="text-[9px] text-gray-500">${bus.fare.name}</div>
-                                    </div>` 
-                                : '';
-
-                // --- 6. POPUP CONTENT ---
-                const popupContent = `
-                    <div class="bg-gray-900 text-white p-3 rounded-lg shadow-xl" style="min-width: 180px;">
-                        
-                        <div class="flex justify-between items-center mb-2 border-b border-gray-700 pb-2">
-                            <h3 class="font-bold text-lg text-blue-400">${bus.bus_number}</h3>
-                            <span class="text-[10px] font-bold px-2 py-0.5 rounded uppercase text-white" style="background-color: ${markerColor};">
-                                ${bus.status}
-                            </span>
-                        </div>
-                        
-                        <div class="mb-2 text-center">
-                            <span class="text-[10px] text-gray-400 block uppercase tracking-wide">Route</span>
-                            <span class="text-sm font-bold text-white">${routeName}</span>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-2 text-center">
-                            <div class="bg-gray-800 p-2 rounded">
-                                <span class="block text-xl font-bold text-white">${bus.passenger_count ?? 0}</span>
-                                <span class="text-[10px] text-gray-400 uppercase">Passengers</span>
-                            </div>
-                            <div class="bg-gray-800 p-2 rounded flex flex-col items-center justify-center">
-                                <i class="fas fa-id-card text-gray-400 text-lg mb-1"></i>
-                                <span class="block text-[10px] text-gray-400 uppercase leading-tight">
-                                    ${driverDisplay}
-                                </span>
-                            </div>
-                        </div>
-
-                        ${fareDisplay}
-
-                    </div>
-                `;
-
-                // 7. DRAW MARKER
+                
+                // 3. CREATE/UPDATE MARKER
                 if (busMarkers[bus.id]) {
+                    // UPDATE EXISTING
                     var existingMarker = busMarkers[bus.id];
                     existingMarker.setLatLng([lat, lng]);
                     
-                    if (!existingMarker.isPopupOpen()) {
-                        existingMarker.setPopupContent(popupContent);
-                    }
-                    
+                    // Update Color if changed
                     var updatedIcon = L.divIcon({
                         className: 'custom-bus-marker',
                         html: `<div style="background-color: ${markerColor}; width: 35px; height: 35px; border-radius: 50%; border: 3px solid white; box-shadow: 0 3px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white;"><i class="fas fa-bus" style="font-size: 16px;"></i></div>`,
@@ -730,6 +815,7 @@ if (bus.route_name) {
                     existingMarker.setIcon(updatedIcon);
 
                 } else {
+                    // CREATE NEW
                     var busIcon = L.divIcon({
                         className: 'custom-bus-marker',
                         html: `<div style="background-color: ${markerColor}; width: 35px; height: 35px; border-radius: 50%; border: 3px solid white; box-shadow: 0 3px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white;"><i class="fas fa-bus" style="font-size: 16px;"></i></div>`,
@@ -738,19 +824,21 @@ if (bus.route_name) {
                         popupAnchor: [0, -20]
                     });
 
-                   var newMarker = L.marker([lat, lng], {icon: busIcon})
-                        .addTo(map);
+                    var newMarker = L.marker([lat, lng], {icon: busIcon}).addTo(map);
                     
+                    // --- UPDATE CLICK EVENT ---
                     newMarker.on('click', function(e) {
-                        // CRITICAL FIX: This stops the click from hitting the map behind the bus
                         L.DomEvent.stopPropagation(e); 
 
-                        // Now run your card update logic
+                        // 1. Update the Card Info
                         if (typeof updateTripCard === 'function') updateTripCard(bus);
                         
-                        // Draw the line (optional, if you want)
-                        if (typeof showRouteOnMap === 'function' && bus.bus_number) {
-                            showRouteOnMap(bus.bus_number);
+                        // 2. Draw the Route Line
+                        if (typeof showRouteOnMap === 'function') {
+                            // Priority: Route Name -> Route ID -> Bus Number
+                            // Ito ang mag-aayos ng "Not Found" error
+                            const identifier = bus.route_name || bus.route_id || bus.bus_number;
+                            showRouteOnMap(identifier);
                         }
                     });
 
@@ -1014,31 +1102,46 @@ if (bus.route_name) {
     });
 
     function generateStops(busNumber) {
-        const stops = [
-            { name: "Main Terminal", status: "Departed", color: "bg-gray-300" },
-            { name: "City Hall", status: "Passed", color: "bg-gray-300" },
-            { name: "Roxas City Plaza", status: "Current Stop", color: "bg-green-500", active: true },
-            { name: "Gaisano Mall", status: "5 min", color: "bg-gray-200" },
-            { name: "St. Anthony Hospital", status: "12 min", color: "bg-gray-200" },
-            { name: "Airport Terminal", status: "20 min", color: "bg-gray-200" }
-        ];
+        // 1. Tukuyin kung anong route ito base sa Bus Number/Name
+        let targetRoute = "";
+        let routeColor = "bg-gray-300";
+        let activeColor = "bg-green-500";
 
+        if (String(busNumber).includes("Green")) { targetRoute = "Green"; routeColor = "bg-green-200"; }
+        else if (String(busNumber).includes("Red")) { targetRoute = "Red"; routeColor = "bg-red-200"; activeColor = "bg-red-500"; }
+        else if (String(busNumber).includes("Blue")) { targetRoute = "Blue"; routeColor = "bg-blue-200"; activeColor = "bg-blue-500"; }
+        else if (String(busNumber).includes("UV")) { targetRoute = "UV"; routeColor = "bg-purple-200"; activeColor = "bg-purple-500"; }
+
+        // 2. I-filter ang stops mula sa loaded API data
+        // (Make sure exact match or includes)
+        const relevantStops = allStopsData.filter(stop => 
+            stop.route_name && stop.route_name.includes(targetRoute)
+        );
+
+        // 3. Render HTML
         let html = '';
-        stops.forEach((stop, index) => {
-            const isLast = index === stops.length - 1;
+        
+        if (relevantStops.length === 0) {
+            stopsContainer.innerHTML = '<div class="text-center p-4 text-gray-400 text-sm">No stop details available for this route.</div>';
+            return;
+        }
+
+        relevantStops.forEach((stop, index) => {
+            const isLast = index === relevantStops.length - 1;
             const lineClass = isLast ? '' : 'h-full w-0.5 bg-gray-200 absolute left-[7px] top-4';
             
+            // Simulation lang: Kunwari nasa first 3 stops ang bus (Active logic needs real data)
+            const isActive = index === 0; 
+
             html += `
                 <div class="relative flex gap-4 pb-8 last:pb-0">
                     <div class="${lineClass}"></div>
-                    <div class="relative z-10 w-4 h-4 rounded-full ${stop.active ? 'bg-green-500 ring-4 ring-green-100' : 'bg-gray-300'} flex-shrink-0 mt-1"></div>
+                    <div class="relative z-10 w-4 h-4 rounded-full ${isActive ? activeColor + ' ring-4 ring-gray-100' : 'bg-gray-300'} flex-shrink-0 mt-1"></div>
                     <div class="flex-grow flex justify-between items-start -mt-0.5">
                         <div>
-                            <h4 class="${stop.active ? 'text-green-700 font-bold' : 'text-gray-600 font-medium'} text-sm">${stop.name}</h4>
-                            <p class="text-xs text-gray-400">Stop #${2800 + index}</p>
-                            ${stop.active ? '<span class="inline-block mt-1 bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full">Current Stop</span>' : ''}
+                            <h4 class="${isActive ? 'text-gray-900 font-bold' : 'text-gray-600 font-medium'} text-sm">${stop.name}</h4>
+                            <p class="text-xs text-gray-400">Stop #${index + 1}</p>
                         </div>
-                        <span class="text-xs ${stop.active ? 'text-green-600 font-bold' : 'text-gray-400'}">${stop.status}</span>
                     </div>
                 </div>
             `;
@@ -1297,47 +1400,6 @@ if (bus.route_name) {
         });
     });
 
-    // --- MASTER MAP CLICK LISTENER ---
-    map.on('click', function() {
-        if (typeof activePolyline !== 'undefined' && activePolyline) {
-            map.removeLayer(activePolyline);
-            activePolyline = null;
-        }
-        if (typeof activeMarkers !== 'undefined' && activeMarkers.length > 0) {
-            activeMarkers.forEach(m => map.removeLayer(m));
-            activeMarkers = [];
-        }
-
-        if (nearbyStopMarker) {
-            map.removeLayer(nearbyStopMarker);
-            nearbyStopMarker = null;
-        }
-
-        if (guideLine) {
-            map.removeLayer(guideLine);
-            guideLine = null;
-        }
-
-        const tripCard = document.getElementById('main-trip-card');
-        if (tripCard) {
-            // FIX: Use the same classes as the button
-            tripCard.classList.add('translate-y-[200%]', 'pointer-events-none');
-            tripCard.classList.remove('pointer-events-auto');
-        }
-
-        const busListPanel = document.getElementById('bus-list-panel');
-        if (busListPanel) busListPanel.classList.add('translate-y-full');
-
-        const detailPanel = document.getElementById('bus-detail-panel');
-        if (detailPanel) detailPanel.classList.add('translate-x-full');
-
-        if (typeof trackedBusId !== 'undefined') {
-            trackedBusId = null;
-        }
-        
-        stopLayer.clearLayers();
-    });
-
     // --- NEW: CONNECT THE BOTTOM CARD BUTTON ---
     const immediateTrackBtn = document.getElementById('btn-track-immediate');
 
@@ -1364,10 +1426,33 @@ if (bus.route_name) {
         }
     });
 
-    // Also close it specifically when clicking the map surface (since map stops propagation)
-    map.on('click', function() {
-        document.getElementById('map-layers-menu').classList.add('hidden');
-    });
+    // 7. EVENT LISTENERS
+        
+        // Map Click (Clear selection)
+        map.on('click', function() {
+            console.log("Map Clicked: Clearing active route line..."); // Debugging check
+
+            // 1. Clear the Blue Route Line
+            if (activePolyline) { 
+                map.removeLayer(activePolyline); 
+                activePolyline = null; 
+            }
+
+            // 2. Clear Start/End Markers (Green A / Red B)
+            activeMarkers.forEach(m => map.removeLayer(m)); 
+            activeMarkers = [];
+            
+            // 3. Hide the Bottom Trip Card
+            if(tripCard) {
+                tripCard.classList.add('translate-y-[200%]', 'pointer-events-none');
+                tripCard.classList.remove('pointer-events-auto');
+            }
+            
+            // 4. Hide Menus
+            document.getElementById('map-layers-menu').classList.add('hidden');
+
+            // NOTE: We deliberately DO NOT clear 'stopsLayer' here, so stops remain visible.
+        });
 
     // ========================================================
     // 🚀 MASTER FUNCTION: SMART ROUTE GUIDE
@@ -1471,28 +1556,60 @@ if (bus.route_name) {
         // 3. Give feedback
         // You can add a simple toast or console log here
         console.log("Visualizing route for bus: " + busNumber);
-
-        // 4. Optional: Zoom out slightly to show the path context
-        // We delay slightly to let the showRouteOnMap function finish its bounds fitting
-        setTimeout(() => {
-            map.zoomOut(1); 
-        }, 800);
     };
 
     // ============================================
-    // 🔌 RECEIVER: Check URL for Nearby Redirects
+    // 🔗 UNIFIED LINKER: NEARBY -> DASHBOARD PIN (FIXED)
     // ============================================
     const urlParams = new URLSearchParams(window.location.search);
-    const fLat = urlParams.get('focusLat');
-    const fLng = urlParams.get('focusLng');
+    const targetLat = parseFloat(urlParams.get('focusLat'));
+    const targetLng = parseFloat(urlParams.get('focusLng'));
 
-    if (fLat && fLng) {
-        // Wait 500ms for map to load, then use Master Function
-        setTimeout(() => {
-            focusOnLocation(parseFloat(fLat), parseFloat(fLng), "Nearby Stop");
-            // Clean URL
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }, 500);
+    // Check kung may coordinates galing sa URL
+    if (!isNaN(targetLat) && !isNaN(targetLng)) {
+        
+        console.log("🔗 Connecting to Nearby Stop...", targetLat, targetLng);
+
+        // Linisin ang URL agad-agad
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        // Maghintay hanggang sa ma-load ang mga bus stops
+        const waitForStops = setInterval(() => {
+            
+            // CORRECTION: Gamitin ang 'stopLayer' (WALANG 's')
+            if (typeof stopLayer !== 'undefined' && stopLayer.getLayers().length > 0) {
+                
+                clearInterval(waitForStops); // Stop waiting
+
+                let found = false;
+
+                // Hanapin ang pin sa 'stopLayer'
+                stopLayer.eachLayer(function(layer) {
+                    const lat = layer.getLatLng().lat;
+                    const lng = layer.getLatLng().lng;
+
+                    // Match coordinates
+                    if (Math.abs(lat - targetLat) < 0.00001 && Math.abs(lng - targetLng) < 0.00001) {
+                        
+                        console.log("✅ Stop found! Zooming...");
+
+                        // 1. Zoom
+                        map.flyTo([lat, lng], 18, { animate: true, duration: 1.5 });
+
+                        // 2. Open Popup
+                        setTimeout(() => {
+                            layer.openPopup();
+                        }, 1600); 
+                        
+                        found = true;
+                    }
+                });
+
+                if (!found) {
+                    console.warn("Stop not found on map layer.");
+                }
+            }
+        }, 500); 
     }
 
 // ============================================
@@ -1767,8 +1884,134 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 800);
     } 
 
-    // ... (Your Blue Line drawing code goes here) ...
+    // --- FEATURE: SHOW SUGGESTED STOPS IN SEARCH BAR ---
+    function renderInitialSuggestions() {
+        const defaultContent = document.getElementById('default-search-content');
+        if(!defaultContent) return;
+
+        // 1. Keep the "Trip Planner" button at the top
+        let html = `
+            <a href="/mobile/planner" class="block mb-4">
+                <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-center gap-4 active:scale-95 transition">
+                    <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-md">
+                        <i class="fas fa-directions"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-blue-900 text-sm">Trip Planner</h4>
+                        <p class="text-xs text-blue-600">Get directions from A to B</p>
+                    </div>
+                    <i class="fas fa-chevron-right text-blue-300 ml-auto"></i>
+                </div>
+            </a>
+            
+            <h3 class="text-gray-400 text-xs font-bold uppercase tracking-wider mb-3 px-1">Suggested Stops</h3>
+            <div class="space-y-2 pb-10">
+        `;
+
+        // 2. Loop through allStopsData (Limit to 20 para hindi masyadong mahaba, o tanggalin ang slice kung gusto mo lahat)
+        // Sort alphabetically first for better UX
+        const sortedStops = allStopsData.slice().sort((a, b) => a.name.localeCompare(b.name));
+        
+        if (sortedStops.length === 0) {
+            html += `<div class="text-center text-gray-400 text-xs py-4">Loading stops...</div>`;
+        }
+
+        sortedStops.forEach(stop => {
+            // Determine Color for the Icon
+            let iconColor = "text-gray-400";
+            if(stop.route_name) {
+                if(stop.route_name.includes('Red')) iconColor = "text-red-500";
+                else if(stop.route_name.includes('Green')) iconColor = "text-green-500";
+                else if(stop.route_name.includes('Blue')) iconColor = "text-blue-500";
+            }
+
+            html += `
+                <div onclick="focusOnStopFromSearch(${stop.lat}, ${stop.lng})" 
+                     class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3 active:bg-gray-50 transition cursor-pointer">
+                    <div class="w-8 h-8 rounded-full bg-gray-50 ${iconColor} flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-map-pin text-sm"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-gray-800 text-sm">${stop.name}</h4>
+                        <p class="text-[10px] text-gray-500">Ride: ${stop.route_name}</p>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-300 ml-auto text-xs"></i>
+                </div>
+            `;
+        });
+
+        html += `</div>`; // Close container
+
+        // 3. Inject into the Search Bar
+        defaultContent.innerHTML = html;
+    }
+
+    // Helper Function: What happens when they click a suggestion
+    window.focusOnStopFromSearch = function(lat, lng) {
+        // Close Search Overlay
+        document.getElementById('search-overlay').classList.add('hidden');
+        document.getElementById('search-overlay').classList.remove('flex');
+        
+        // Fly to Location
+        map.flyTo([lat, lng], 16, { animate: true, duration: 1.0 });
+
+        // Try to open the popup for this stop
+        // We find the marker in the stopsLayer
+        stopsLayer.eachLayer(function(layer) {
+            const lLat = layer.getLatLng().lat;
+            const lLng = layer.getLatLng().lng;
+            // Simple proximity check (since floats can be slightly different)
+            if (Math.abs(lLat - lat) < 0.0001 && Math.abs(lLng - lng) < 0.0001) {
+                layer.openPopup();
+            }
+        });
+    };
 });
+
+// ============================================
+    // 🛑 TOGGLE STOPS LOGIC (I-PASTE MO DITO SA DULO)
+    // ============================================
+    
+    // 1. Hanapin ang button na ginawa natin
+    const btnToggleStops = document.getElementById('btn-toggle-stops');
+    
+    // 2. Gumawa ng "Switch" (Default is TRUE/NAKA-ON)
+    let areStopsVisible = true; 
+
+    // 3. Makinig kapag pinindot ang button
+    if (btnToggleStops) { // Safety check kung nag-exist ang button
+        btnToggleStops.addEventListener('click', () => {
+            
+            if (areStopsVisible) {
+                // --- KUNG NAKA-ON, PATAYIN NATIN ---
+                
+                // A. Tanggalin ang stops sa mapa
+                map.removeLayer(stopLayer);
+                areStopsVisible = false;
+                
+                // B. Gawing GRAY ang button (Visual Feedback)
+                btnToggleStops.classList.remove('text-green-600', 'bg-white');
+                btnToggleStops.classList.add('text-gray-400', 'bg-gray-100');
+                
+                // C. Magpakita ng message
+                if(typeof showToast === 'function') showToast("Map Settings", "Bus stops hidden.");
+                
+            } else {
+                // --- KUNG NAKA-OFF, BUKSAN NATIN ---
+
+                // A. Ibalik ang stops sa mapa
+                map.addLayer(stopLayer);
+                areStopsVisible = true;
+
+                // B. Gawing GREEN ang button (Visual Feedback)
+                btnToggleStops.classList.remove('text-gray-400', 'bg-gray-100');
+                btnToggleStops.classList.add('text-green-600', 'bg-white');
+                
+                // C. Magpakita ng message
+                if(typeof showToast === 'function') showToast("Map Settings", "Bus stops visible.");
+            }
+        });
+    }
 </script>
 </body>
-</html>
+</html> 
