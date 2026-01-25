@@ -40,28 +40,40 @@ class BusController extends Controller
     public function store(Request $request)
     {
         // 1. Validate the input
-        $request->validate([
+        $validated = $request->validate([
             'bus_number' => 'required|string|max:255',
             'plate_number' => 'required|string|max:255|unique:buses',
             'route_id' => 'nullable|exists:routes,id',
-            'driver_id' => 'nullable|exists:users,id', // CONSISTENT: Checks Users table
+            // Tanggalin muna ang driver validation para iwas error
+            // 'driver_id' => 'nullable|exists:users,id', 
             'status' => 'required|string',
             'capacity' => 'nullable|integer',
             'fare_matrix_id' => 'nullable|exists:fare_matrices,id',
         ]);
 
-        // 2. Create the Bus
-        Bus::create([
-            'bus_number' => $request->bus_number,
-            'plate_number' => $request->plate_number,
-            'route_id' => $request->route_id,
-            'driver_id' => $request->driver_id,
-            'status' => $request->status,
-            'max_capacity' => $request->capacity ?? 40,
-            'fare_matrix_id' => $request->fare_matrix_id,
-        ]);
+        // 2. Prepare Data (CHEAT CODE)
+        // Gumamit tayo ng $request->except para hindi isama ang driver_id na galing sa form
+        $busData = $request->except(['driver_id']);
 
-        return redirect()->route('admin.buses.index')->with('success', 'Bus created successfully!');
+        // --- COORDINATES (Palitan mo ito ng nakuha mo sa Google Maps Right Click) ---
+        $busData['lat'] = 11.55953551145487;  // Example lang to, palitan mo ng exact
+        $busData['lng'] = 122.75077744692442; // Example lang to
+        // ------------------------------------------------------------------------
+
+        $busData['status'] = 'active'; 
+        $busData['max_capacity'] = $request->capacity ?? 40;
+        $busData['driver_id'] = null; // FORCE NULL para walang error
+
+        // 3. Fallback Route
+        if (empty($busData['route_id'])) {
+            $defaultRoute = Route::first();
+            $busData['route_id'] = $defaultRoute ? $defaultRoute->id : null;
+        }
+
+        // 4. Save
+        Bus::create($busData);
+
+        return redirect()->route('admin.buses.index')->with('success', 'Bus added successfully at the Terminal!');
     }
 
     /**

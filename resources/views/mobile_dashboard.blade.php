@@ -774,71 +774,76 @@
         }
     };
 
-    // --- REPLACED: REAL-TIME BUS TRACKING WITH PASSENGER DATA ---
+    // --- REPLACED: FIXED BUS TRACKING WITH JIGGLE & COLORS ---
     async function fetchBusPositions() {
         try {
-            const response = await fetch('/api/bus-locations');
-            if (!response.ok) throw new Error("API Connection Failed");
+            // 1. ADD TIMESTAMP (Para hindi mag-load ng lumang data/cache)
+            const response = await fetch('/api/bus-locations?t=' + Date.now());
+            if (!response.ok) return;
             
             const buses = await response.json();
+            
+            // 2. JIGGLE TRACKER (Para sa mga magkakapatong na bus)
+            let locMap = {}; 
 
             buses.forEach(bus => {
-                // 1. SAFETY CHECKS
+                // Safety Check: Skip kung walang GPS
                 if (!bus.lat || !bus.lng) return; 
                 
                 var lat = parseFloat(bus.lat);
                 var lng = parseFloat(bus.lng);
 
-                // 2. COLOR LOGIC
-                let markerColor = '#636e72'; // Default Gray
-                if (bus.route_name) {
-                    if (bus.route_name.includes("Red")) markerColor = '#e74c3c';
-                    else if (bus.route_name.includes("Blue")) markerColor = '#0984e3';
-                    else if (bus.route_name.includes("Green")) markerColor = '#00b894';
-                    else if (bus.route_name.includes("UV")) markerColor = '#6c5ce7';
+                // --- JIGGLE LOGIC ---
+                // Kung may bus na sa coordinate na 'to, usog natin ng 30 meters
+                let locKey = lat.toFixed(4) + "," + lng.toFixed(4);
+                if (locMap[locKey]) {
+                    lat += (Math.random() - 0.5) * 0.0008; 
+                    lng += (Math.random() - 0.5) * 0.0008;
                 }
+                locMap[locKey] = true;
+
+                // 3. SAFE NAME & COLOR LOGIC
+                // Kunin ang route name kahit saan man nakatago (flat or nested)
+                let safeRouteName = "Unassigned";
+                if (bus.route && bus.route.name) safeRouteName = bus.route.name;
+                else if (bus.route_name) safeRouteName = bus.route_name;
+
+                let markerColor = '#636e72'; // Default Gray
+                let checkStr = (String(safeRouteName) + " " + String(bus.plate_number)).toUpperCase();
+
+                if (checkStr.includes("RED")) markerColor = '#e74c3c';
+                else if (checkStr.includes("BLUE")) markerColor = '#0984e3';
+                else if (checkStr.includes("GREEN")) markerColor = '#00b894';
+                else if (checkStr.includes("UV")) markerColor = '#6c5ce7';
+                else if (bus.status === 'active') markerColor = '#00b894';
+
+                // 4. MARKER CREATION (Gamit ang existing style mo)
+                let iconHtml = `<div style="background-color: ${markerColor}; width: 35px; height: 35px; border-radius: 50%; border: 3px solid white; box-shadow: 0 3px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white;"><i class="fas fa-bus" style="font-size: 16px;"></i></div>`;
                 
-                // 3. CREATE/UPDATE MARKER
+                let busIcon = L.divIcon({ 
+                    className: 'custom-bus-marker', 
+                    html: iconHtml, 
+                    iconSize: [35, 35], 
+                    iconAnchor: [17, 17],
+                    popupAnchor: [0, -20]
+                });
+
                 if (busMarkers[bus.id]) {
-                    // UPDATE EXISTING
-                    var existingMarker = busMarkers[bus.id];
-                    existingMarker.setLatLng([lat, lng]);
-                    
-                    // Update Color if changed
-                    var updatedIcon = L.divIcon({
-                        className: 'custom-bus-marker',
-                        html: `<div style="background-color: ${markerColor}; width: 35px; height: 35px; border-radius: 50%; border: 3px solid white; box-shadow: 0 3px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white;"><i class="fas fa-bus" style="font-size: 16px;"></i></div>`,
-                        iconSize: [35, 35],
-                        iconAnchor: [17, 17],
-                        popupAnchor: [0, -20]
-                    });
-                    existingMarker.setIcon(updatedIcon);
-
+                    // Update existing marker
+                    busMarkers[bus.id].setLatLng([lat, lng]).setIcon(busIcon);
                 } else {
-                    // CREATE NEW
-                    var busIcon = L.divIcon({
-                        className: 'custom-bus-marker',
-                        html: `<div style="background-color: ${markerColor}; width: 35px; height: 35px; border-radius: 50%; border: 3px solid white; box-shadow: 0 3px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white;"><i class="fas fa-bus" style="font-size: 16px;"></i></div>`,
-                        iconSize: [35, 35],
-                        iconAnchor: [17, 17],
-                        popupAnchor: [0, -20]
-                    });
-
-                    var newMarker = L.marker([lat, lng], {icon: busIcon}).addTo(map);
+                    // Create new marker
+                    let newMarker = L.marker([lat, lng], {icon: busIcon}).addTo(map);
                     
-                    // --- UPDATE CLICK EVENT ---
-                    newMarker.on('click', function(e) {
+                    newMarker.on('click', (e) => {
                         L.DomEvent.stopPropagation(e); 
-
-                        // 1. Update the Card Info
+                        
+                        // Update Card
                         if (typeof updateTripCard === 'function') updateTripCard(bus);
                         
-                        // 2. Draw the Route Line
-                        if (typeof showRouteOnMap === 'function') {
-                            // Priority: Route Name -> Route ID -> Bus Number
-                            // Ito ang mag-aayos ng "Not Found" error
-                            const identifier = bus.route_name || bus.route_id || bus.bus_number;
-                            showRouteOnMap(identifier);
+                        // Draw Line (Pass the safe name to avoid errors)
+                        if (typeof showRouteOnMap === 'function' && safeRouteName !== "Unassigned") {
+                            showRouteOnMap(safeRouteName);
                         }
                     });
 
@@ -846,9 +851,7 @@
                 }
             });
 
-        } catch (error) {
-            console.error('Error fetching bus positions:', error);
-        }
+        } catch (error) { console.error('Fetch error:', error); }
     }
 
     // --- PASSENGER HAIL LOGIC ---

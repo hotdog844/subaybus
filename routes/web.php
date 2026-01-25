@@ -315,6 +315,27 @@ Route::get('/check-gps', function () {
     return $log ? "✅ Lat: {$log->latitude}, Lng: {$log->longitude}" : "❌ No data yet.";
 });
 
+// --- FIX: SEPARATION SCRIPT (Ilipat ang SIM buses sa RCITT, iwan ang GPS bus) ---
+// Route::get('/fix-database-now', function () {
+//     // 1. Target Coordinates (RCITT Terminal)
+//     $terminalLat = 11.559536845932017;
+//     $terminalLng = 122.75077876568271;
+
+//     // 2. UPDATE ONLY THE 'SIM' BUSES (at iba pa)
+//     // Exclude natin si '9176466392' para hindi magulo ang GPS data niya
+//     // Ibig sabihin: "Update mo lahat ng bus na HINDI 9176466392"
+//     $affected = \Illuminate\Support\Facades\DB::table('buses')
+//         ->where('plate_number', '!=', '9176466392') 
+//         ->update([
+//             'lat' => $terminalLat,
+//             'lng' => $terminalLng,
+//             'status' => 'active',
+//             'updated_at' => now()
+//         ]);
+
+//     return "✅ SEPARATION COMPLETE: Inilipat ang $affected na buses sa RCITT Terminal ($terminalLat, $terminalLng). Ang GPS Unit (917...) ay naiwan sa pwesto niya.";
+// });
+
 // --- FIX FOR BROKEN PROFILE LINKS ---
 // This redirects any old "profile.edit" links to your new Mobile Profile page
 Route::get('/profile', function() { 
